@@ -20,6 +20,9 @@ match: `package.json`, `VERSION` in `src/taskpane.js`, and `<Version>` in `src/m
 - Manifest `DefaultLocale` is `en-US` with `da-DK` and `sv-SE` overrides for description, group
   label, button label and tooltip.
 - `examples/config.sv-SE.js` removed – Swedish is built in.
+- License changed from MIT to the Cisco Sample Code License, Version 1.1 (`LICENSE`); the
+  license header added to every source file; bundled MSAL.js listed in
+  `THIRD_PARTY_NOTICES.md`.
 
 ### Added
 - English and Swedish locales alongside Danish.

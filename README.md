@@ -103,10 +103,15 @@ Outlook on Mac (Microsoft 365). Not Outlook mobile. Details in
 
 ## Relationship to Cisco
 
-This project is not provided or supported by Cisco. It sends reports to the public submission
+This is Cisco sample code, not a Cisco product: it is provided as-is under the Cisco Sample
+Code License and is not supported by Cisco TAC. It sends reports to the public submission
 addresses Cisco documents for customers (`*@access.ironport.com`) using the same message shape
-as Cisco's add-in. Cisco Secure Awareness simulated-phishing handling is not replicated.
+as Cisco's own add-in. Cisco Secure Awareness simulated-phishing handling is not replicated.
 
 ## License
 
-MIT – see [LICENSE](LICENSE). Bundles MSAL.js (`src/lib/msal-browser.min.js`), MIT, © Microsoft.
+Copyright (c) 2026 Cisco and/or its affiliates. Licensed under the
+[Cisco Sample Code License, Version 1.1](LICENSE) – see also
+<https://developer.cisco.com/docs/licenses>. Every source file carries the license header.
+Bundled third-party software (MSAL.js, MIT) is listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

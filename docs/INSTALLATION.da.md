@@ -171,5 +171,6 @@ Den engelske fejlfindingsvejledning (`docs/TROUBLESHOOTING.md`) er mere udførli
   rapporteres som almindelig phishing.
 - Der er seks kategorier (Ciscos add-in har tre: spam/phish/virus, legitim, marketing). Skjul dem,
   I ikke ønsker, med `enabled: false`.
-- Tilføjelsesprogrammet er ikke leveret eller supporteret af Cisco. Rapporterne behandles dog på
-  samme måde hos Talos, da de sendes til de officielle adresser i samme format.
+- Tilføjelsesprogrammet er Cisco-eksempelkode under *Cisco Sample Code License 1.1* – ikke et
+  Cisco-produkt, og det supporteres ikke af Cisco TAC. Rapporterne behandles dog på samme måde
+  hos Talos, da de sendes til de officielle adresser i samme format.

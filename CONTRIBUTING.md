@@ -13,6 +13,9 @@
 - Keep the existing fallback chain intact: graph → compose on preconditions, size or failure.
   A change that makes reporting *possible* in fewer situations is a regression.
 
+- Every new source file (JS, CSS, HTML, XML, Python, shell, PowerShell) starts with the Cisco
+  Sample Code License header – copy it from an existing file of the same type.
+
 ## Before you open a pull request
 
 ```bash
