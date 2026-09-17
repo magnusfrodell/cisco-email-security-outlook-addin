@@ -44,9 +44,22 @@ window.REPORTER_CONFIG = {
    * 2. Sending
    * ==================================================================== */
 
-  /* Application (client) ID of your Entra app registration (docs/DEPLOYMENT.md, step 2).
-   * Empty string = automatic send is off. The add-in then opens a new message with the
-   * reported mail attached, and the user presses Send.
+  /* "graph"   (default): reports are sent automatically through Microsoft Graph on the
+   *                      user's behalf – one click, no new message. Needs CLIENT_ID.
+   * "compose": every report opens a new message with the reported mail attached and
+   *            the user presses Send. No app registration needed.
+   */
+  SEND_MODE: "graph",
+
+  /* If automatic send is unavailable (CLIENT_ID missing, unsupported Outlook client) or
+   * a send fails, fall back to a new message. false = show an error instead and never
+   * open a new message.
+   */
+  COMPOSE_FALLBACK: true,
+
+  /* Application (client) ID of the Entra app registration that automatic send uses
+   * (docs/DEPLOYMENT.md, step 2). Required for SEND_MODE "graph". Leave empty only for
+   * SEND_MODE "compose" – with "graph" an empty value shows a warning in the pane.
    */
   CLIENT_ID: "",
 

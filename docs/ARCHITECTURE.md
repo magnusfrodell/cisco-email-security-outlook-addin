@@ -46,35 +46,45 @@ for when submitting manually. Talos therefore processes reports from this add-in
 
 ## 2. Send modes
 
-`detectMode()` picks one of two modes when the pane opens and shows it in the chip in the header.
+Graph is the configured default (`SEND_MODE: "graph"`). `detectMode()` decides when the pane
+opens whether it can run, shows the result in the header chip, and – if it has to fall back –
+explains why in a persistent notice under the header.
 
 ```mermaid
 flowchart TD
-    A[Pane opens] --> B{CLIENT_ID set?}
-    B -- no --> C[compose]
+    A[Pane opens] --> S{SEND_MODE}
+    S -- compose --> H{Mailbox 1.6?}
+    S -- graph --> B{CLIENT_ID set?}
+    B -- no --> R[not available]
     B -- yes --> D{Mailbox 1.14<br/>getAsFileAsync?}
-    D -- no --> C
+    D -- no --> R
     D -- yes --> E{NestedAppAuth 1.1?}
-    E -- no --> C
+    E -- no --> R
     E -- yes --> F{MSAL loaded?}
-    F -- no --> C
+    F -- no --> R
     F -- yes --> G[graph]
-    C --> H{Mailbox 1.6?}
-    H -- no --> X[Pane shows error]
-    H -- yes --> C2[compose ready]
+    R --> FB{COMPOSE_FALLBACK<br/>and Mailbox 1.6?}
+    FB -- yes --> C[compose + warning notice]
+    FB -- no --> N[none: error notice,<br/>buttons disabled]
+    H -- yes --> C2[compose]
+    H -- no --> N
 ```
 
 | Mode        | What happens                                                                                                                                                    | Needs                                                                     |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | **graph**   | EML fetched with `getAsFileAsync`, sent with Graph `POST /me/sendMail`, message moved with `POST /me/messages/{id}/move`. No user interaction beyond the click. | `CLIENT_ID`, Entra app registration, Mailbox 1.14, NestedAppAuth 1.1      |
-| **compose** | `displayNewMessageForm(Async)` opens a new message to Cisco's address with the selected item attached; the user presses Send.                                   | Mailbox 1.6 (1.9 for the async variant with error reporting)               |
+| **compose** | `displayNewMessageForm(Async)` opens a new message to Cisco's address with the selected item attached; the user presses Send. The default only with `SEND_MODE: "compose"`; otherwise the fallback. | Mailbox 1.6 (1.9 for the async variant with error reporting) |
+| **none**    | Neither is possible (or the fallback is disabled): error notice, buttons disabled.                                                                              |                                                                           |
 
-Runtime fallbacks from graph to compose:
+Runtime fallbacks from graph to compose (only when `state.fallbackOk`, i.e. `COMPOSE_FALLBACK`
+is not `false` and Mailbox 1.6 is available):
 
 - the EML is larger than `MAX_GRAPH_ATTACHMENT_BYTES` (default 3 MB, the Graph `sendMail`
   limit for inline attachments) → compose is used automatically and the status explains why;
 - token acquisition, `getAsFileAsync` or the Graph call fails → the status shows the error and a
   **Send manually instead** button that runs the compose flow for the same category.
+
+With the fallback disabled both cases end in an error status and no message is opened.
 
 The move step never blocks a report: if `move` fails after `sendMail` succeeded, the report
 counts as sent and the status omits the "moved to …" part.
@@ -209,8 +219,10 @@ events it attaches. Global state lives in one object:
 
 ```javascript
 var state = {
-  mode: "compose",      // "graph" | "compose", decided by detectMode()
+  mode: "compose",      // "graph" | "compose" | "none", decided by detectMode()
   modeDetected: false,  // detectMode() has run (the chip shows "starting" before that)
+  notice: null,         // { kind, key, reasonKey } – persistent notice under the header, or null
+  fallbackOk: false,    // compose may be used as a fallback for graph
   language: null,       // active locale key, e.g. "da"
   msalApp: null,        // lazily created NestablePublicClientApplication
   busy: false,          // a report is in progress; buttons are disabled
@@ -257,6 +269,7 @@ User-facing status text always goes through `t()`.
 | `clearStatus()`          | Hides the status box; called when the selected item changes.                                                         |
 | `setButtonsEnabled(on)`  | Enables/disables all category buttons.                                                                               |
 | `updateModeChip()`       | Header chip text from `state.mode`/`state.modeDetected` in the active language.                                       |
+| `renderNotice()`         | Shows or hides the persistent notice under the header from `state.notice` (kind, string key, localized reason). Re-run on every language switch. |
 | `renderCategories()`     | Clears both group containers, sets the group titles from the locale, and builds one `<button class="btn-cat" data-id=…>` per enabled category with the localized label and hint. Re-run on every language switch. |
 | `refreshItem()`          | Reads `Office.context.mailbox.item`, shows subject/sender or the "no mail selected" state. Bound to `ItemChanged` for pinned panes. |
 
@@ -298,7 +311,8 @@ and the technical detail is in the log, never lost.
 2. stop with an error status if no locale file is loaded;
 3. `applyLocale(resolveLanguage())` – strings, group titles, buttons, selector;
 4. `initSettings()` – keep-copy checkbox and language selector;
-5. `detectMode()` (logs the reasons if graph mode is not available) and settings visibility;
+5. `detectMode()` – applies `SEND_MODE`/`COMPOSE_FALLBACK`, logs the reasons if the configured
+   mode is not available, sets the notice and the settings visibility;
 6. `refreshItem()`;
 7. register the `ItemChanged` handler (Mailbox 1.5+) so a pinned pane follows the selection.
 
@@ -346,7 +360,9 @@ stub, and drives the pane with Playwright: automatic language resolution (da-DK 
 button per enabled category, the language selector (switch to Swedish and English, back to
 automatic, choice persisted), the compose flow addressed to the right Cisco address with an
 item attachment and localized subject/body, status rendering, button enable/disable on selection
-change, and zero JavaScript errors. It can also write the screenshots used in the documentation
+change, and zero JavaScript errors. A second scenario simulates a fully configured deployment
+(`CLIENT_ID` set, NestedAppAuth available) and checks that graph mode is selected without a
+warning. It can also write the screenshots used in the documentation
 (`--screenshots docs/images`).
 
 CI (`.github/workflows/ci.yml`) runs the syntax check, the manifest validator, a version
@@ -361,9 +377,11 @@ Graph mode cannot be exercised without a real Outlook and tenant; see
   system to secure and a place for reports to get stuck, with no gain.
 - **Mirror Cisco's payload.** Same attachment name pattern, content type and custom header, so
   Talos sees the format it already accepts.
-- **Compose mode as a first-class citizen.** It needs no app registration and no consent, and it
-  works on every supported client. Organisations that want one-click reporting add the Entra app
-  later without redeploying the manifest.
+- **Graph by default, compose as a visible reserve.** One-click reporting is what users expect
+  from Cisco's add-in, so it is the configured default and a missing app registration is
+  surfaced as a warning rather than silently degraded. The compose path stays because it needs
+  no app registration and works on every supported client – as the fallback, or as the only
+  mode for a zero-infrastructure deployment.
 - **Self-hosted MSAL.** No CDN dependency, no CSP surprises, and the version is pinned by
   what is in the repository.
 - **One locale file per language.** Translating is copying a file; the JavaScript stays

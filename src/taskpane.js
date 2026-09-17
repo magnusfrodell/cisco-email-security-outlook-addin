@@ -19,7 +19,7 @@
 /*
  * Cisco Email Security Reporter – task pane logic.
  *
- * Two send modes:
+ * Two send modes (SEND_MODE in config.js, default "graph"):
  *   graph   : The mail is fetched as EML (getAsFileAsync) and sent through Microsoft Graph
  *             /me/sendMail with Nested App Authentication (NAA). Needs CLIENT_ID in
  *             config.js, Mailbox 1.14 and NestedAppAuth 1.1 in the Outlook client.
@@ -27,8 +27,10 @@
  *             as an item ("forward as attachment"). The user presses Send. Works without
  *             an app registration (Mailbox 1.6+).
  *
- * graph falls back to compose automatically when its preconditions are missing, and
- * offers compose as "send manually instead" when a send fails.
+ * With SEND_MODE "graph" and COMPOSE_FALLBACK true, compose is used only as a reserve:
+ * when graph's preconditions are missing (a warning is shown in the pane), when a mail is
+ * too large for Graph, or on demand ("send manually instead") after a failed send.
+ * With COMPOSE_FALLBACK false the pane shows an error instead of opening a new message.
  *
  * Languages: every user-facing text comes from window.REPORTER_LOCALES[<lang>]
  * (src/locales/*.js). The active language is resolved in resolveLanguage(). This file
@@ -37,7 +39,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "1.1.0";
+  var VERSION = "1.2.0";
   var CFG = window.REPORTER_CONFIG || {};
   var LOCALES = window.REPORTER_LOCALES || {};
   var LOG_PREFIX = "[CiscoReporter]";
@@ -48,8 +50,10 @@
   var S = {};   // active locale strings
 
   var state = {
-    mode: "compose",
+    mode: "compose",      // "graph" | "compose" | "none"
     modeDetected: false,
+    notice: null,         // { kind, key, reasonKey } shown persistently under the header
+    fallbackOk: false,    // compose may be used as a fallback for graph
     language: null,
     msalApp: null,
     busy: false,
@@ -186,6 +190,7 @@
     applyStrings();
     renderCategories();
     updateModeChip();
+    renderNotice();
     renderLanguageSelector();
     clearStatus();
   }
@@ -292,9 +297,25 @@
       setModeChip(t("chipStarting"), "chip-neutral");
     } else if (state.mode === "graph") {
       setModeChip(t("chipAuto"), "chip-ok");
-    } else {
+    } else if (state.mode === "compose") {
       setModeChip(t("chipCompose"), "chip-neutral");
+    } else {
+      setModeChip(t("chipUnavailable"), "chip-err");
     }
+  }
+
+  /** Persistent notice under the header (e.g. "automatic send is not available"). */
+  function renderNotice() {
+    var box = $("notice");
+    if (!box) { return; }
+    var n = state.notice;
+    if (!n) { box.hidden = true; return; }
+    box.hidden = false;
+    box.setAttribute("data-kind", n.kind);
+    var chip = $("notice-chip");
+    chip.textContent = t(n.kind === "err" ? "chipErr" : "chipWarn");
+    chip.className = "chip chip-" + n.kind;
+    $("notice-text").textContent = t(n.key, { reason: n.reasonKey ? t(n.reasonKey) : "" });
   }
 
   function setStatus(kind, text, opts) {
@@ -334,8 +355,9 @@
   }
 
   function setButtonsEnabled(on) {
+    var enabled = on && state.mode !== "none";
     var btns = document.querySelectorAll(".btn-cat");
-    for (var i = 0; i < btns.length; i++) { btns[i].disabled = !on; }
+    for (var i = 0; i < btns.length; i++) { btns[i].disabled = !enabled; }
   }
 
   function renderCategories() {
@@ -354,7 +376,7 @@
       b.className = "btn-cat";
       b.setAttribute("data-id", cat.id);
       b.setAttribute("title", t("sentTo", { address: cat.address }));
-      b.disabled = state.busy || !state.item;
+      b.disabled = state.busy || !state.item || state.mode === "none";
       var l = document.createElement("span");
       l.className = "btn-cat-label";
       l.textContent = labelOf(cat);
@@ -638,6 +660,10 @@
 
   async function report(cat) {
     if (state.busy) { return; }
+    if (state.mode === "none") {
+      renderNotice();
+      return;
+    }
     if (!state.item) {
       setStatus("warn", t("selectFirst"));
       return;
@@ -654,11 +680,17 @@
           r = await reportViaGraph(cat);
         } catch (e) {
           log("error", "Graph send failed", errText(e));
-          setStatus("err", t("notSentAuto") + friendlyError(e), { retryCompose: cat });
+          setStatus("err", t("notSentAuto") + friendlyError(e),
+            state.fallbackOk ? { retryCompose: cat } : undefined);
           return;
         }
         if (r.fallback) {
-          await reportViaCompose(cat, r.reason);
+          if (state.fallbackOk) {
+            await reportViaCompose(cat, r.reason);
+          } else {
+            log("warn", "Compose fallback disabled – report not sent", r.reason);
+            setStatus("err", t("notSentAuto") + r.reason);
+          }
         }
       } else {
         await reportViaCompose(cat);
@@ -676,22 +708,67 @@
   /* Startup                                                            */
   /* ------------------------------------------------------------------ */
 
+  /**
+   * Decide the send mode.
+   *   SEND_MODE "graph" (default): graph when configured and supported; otherwise compose
+   *   as a fallback (with a visible warning) if COMPOSE_FALLBACK is not false, else "none".
+   *   SEND_MODE "compose": compose, no warning.
+   */
   function detectMode() {
+    var wantGraph = String(CFG.SEND_MODE || "graph").toLowerCase() !== "compose";
     var reasons = [];
-    if (!CFG.CLIENT_ID) { reasons.push("CLIENT_ID is empty in config.js"); }
-    if (!isSet("Mailbox", "1.14")) { reasons.push("Mailbox 1.14 (getAsFileAsync) not supported by this client"); }
-    if (!isSet("NestedAppAuth", "1.1")) { reasons.push("NestedAppAuth 1.1 not supported by this client"); }
-    if (!window.msal || typeof msal.createNestablePublicClientApplication !== "function") {
-      reasons.push("MSAL (lib/msal-browser.min.js) not loaded");
+    var reasonKey = null;
+
+    if (wantGraph) {
+      if (!CFG.CLIENT_ID) {
+        reasons.push("CLIENT_ID is empty in config.js");
+        reasonKey = reasonKey || "reasonNotConfigured";
+      }
+      if (!isSet("Mailbox", "1.14")) {
+        reasons.push("Mailbox 1.14 (getAsFileAsync) not supported by this client");
+        reasonKey = reasonKey || "reasonClientUnsupported";
+      }
+      if (!isSet("NestedAppAuth", "1.1")) {
+        reasons.push("NestedAppAuth 1.1 not supported by this client");
+        reasonKey = reasonKey || "reasonClientUnsupported";
+      }
+      if (!window.msal || typeof msal.createNestablePublicClientApplication !== "function") {
+        reasons.push("MSAL (lib/msal-browser.min.js) not loaded");
+        reasonKey = reasonKey || "reasonMsalMissing";
+      }
     }
-    if (!isSet("Mailbox", "1.6")) {
+
+    var composeSupported = isSet("Mailbox", "1.6");
+    var fallbackAllowed = CFG.COMPOSE_FALLBACK !== false;
+    state.fallbackOk = composeSupported && fallbackAllowed;
+
+    if (wantGraph && reasons.length === 0) {
+      state.mode = "graph";
+      state.notice = null;
+    } else if (!wantGraph && composeSupported) {
+      state.mode = "compose";
+      state.notice = null;
+    } else if (wantGraph && state.fallbackOk) {
+      state.mode = "compose";
+      state.notice = { kind: "warn", key: "autoUnavailable", reasonKey: reasonKey };
+    } else if (wantGraph) {
+      state.mode = "none";
+      state.notice = { kind: "err", key: "autoUnavailableNoFallback", reasonKey: reasonKey };
+      if (!composeSupported) { reasons.push("Mailbox 1.6 (displayNewMessageForm) not supported by this client"); }
+    } else {
+      state.mode = "none";
+      state.notice = { kind: "err", key: "composeUnavailable", reasonKey: null };
       reasons.push("Mailbox 1.6 (displayNewMessageForm) not supported by this client");
     }
 
-    state.mode = reasons.length === 0 ? "graph" : "compose";
     state.modeDetected = true;
     updateModeChip();
-    log("info", "Send mode: " + state.mode, reasons.length ? reasons : undefined);
+    renderNotice();
+    log("info", "Send mode: " + state.mode, {
+      configured: wantGraph ? "graph" : "compose",
+      fallback: state.fallbackOk,
+      reasons: reasons.length ? reasons : undefined
+    });
     updateSettingsVisibility();
   }
 

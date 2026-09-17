@@ -11,7 +11,7 @@ A healthy graph-mode report looks like this:
 ```text
 13:26:06 INFO Start {"addin":"1.1.0","host":"Outlook","platform":"PC","version":"16.0.18…","displayLanguage":"da-DK"}
 13:26:06 INFO Language: da {"source":"Outlook display language da-DK","available":["da","en","sv"]}
-13:26:06 INFO Send mode: graph
+13:26:06 INFO Send mode: graph {"configured":"graph","fallback":true}
 13:26:06 INFO Mail selected {"subject":"…","from":"…","itemId":"AAMkAGI2THVSAAA…"}
 13:26:10 INFO Report started {"category":"phish","mode":"graph"}
 13:26:10 INFO Initialising MSAL (NAA) {"authority":"https://login.microsoftonline.com/…"}
@@ -21,14 +21,23 @@ A healthy graph-mode report looks like this:
 13:26:12 INFO Message moved {"to":"junkemail"}
 ```
 
-The `Send mode` line lists the reasons whenever graph mode is not active, for example
-`["CLIENT_ID is empty in config.js"]` or `["NestedAppAuth 1.1 not supported by this client"]`.
+The `Send mode` line lists the reasons whenever the configured mode is not active, for example
+`"reasons":["CLIENT_ID is empty in config.js"]` or `["NestedAppAuth 1.1 not supported by this client"]`,
+and whether the compose fallback is allowed.
+
+## What the fallback looks like
+
+When graph mode cannot run, the pane keeps working but says so:
+
+![Fallback warning under the header](images/taskpane-fallback.png)
 
 ## Symptoms
 
 | Symptom                                                                 | Cause and fix                                                                                                                                                                                                                              |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Chip says *Åbner ny mail til afsendelse* although `CLIENT_ID` is set     | Read the `Send mode` reasons. Old Outlook build without Mailbox 1.14 / NestedAppAuth → update the client. `MSAL … not loaded` → `lib/msal-browser.min.js` returns 404 or is blocked by CSP.                                                    |
+| Warning *Automatic send is not available …* under the header             | Graph is the default but cannot run. The `Send mode` log line lists the reasons: `CLIENT_ID is empty` → finish step 2–3 of the deployment guide; Mailbox 1.14 / NestedAppAuth missing → update the Outlook client; `MSAL … not loaded` → `lib/msal-browser.min.js` returns 404 or is blocked by CSP. Reports still work through the fallback (new message) unless `COMPOSE_FALLBACK` is `false`. |
+| Chip says *Unavailable* and all buttons are disabled                     | Graph cannot run and `COMPOSE_FALLBACK` is `false` (or the client lacks Mailbox 1.6). Fix the graph preconditions, or allow the fallback.                                                                                                      |
+| Users see the new-message window although they should not                | The fallback is being used – look for the warning under the header and the `Send mode` log line. Set `COMPOSE_FALLBACK: false` if you would rather have an error than a new message.                                                        |
 | `AADSTS65001` / *mangler samtykke*                                       | Admin consent not granted for `Mail.Send` (and `Mail.ReadWrite`). Grant it in the app registration, or let the user consent if the tenant allows user consent.                                                                             |
 | `AADSTS50011` redirect URI mismatch                                      | The SPA redirect URI `brk-multihub://<origin>` does not match the origin serving `taskpane.html`. Compare scheme-less host (and port) exactly. A path in the redirect URI is invalid.                                                          |
 | `AADSTS700016` application not found                                     | `CLIENT_ID` is wrong or the registration is in another tenant than `AUTHORITY` points to.                                                                                                                                                  |

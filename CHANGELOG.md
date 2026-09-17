@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 match: `package.json`, `VERSION` in `src/taskpane.js`, and `<Version>` in `src/manifest.xml`
 (four-part form, e.g. `1.0.0.0`).
 
+## [1.2.0] – 2026-09-17
+
+### Changed
+- Automatic send through Microsoft Graph is now the configured default (`SEND_MODE: "graph"`).
+  Opening a new message is a fallback, not a mode of its own: it is used when automatic send
+  is unavailable or fails, and the pane then shows a persistent warning explaining why
+  (missing `CLIENT_ID`, unsupported client, component not loaded).
+- `COMPOSE_FALLBACK` (default `true`) controls whether the fallback is allowed at all; with
+  `false` the pane shows an error and never opens a new message.
+- `SEND_MODE: "compose"` restores the previous always-new-message behaviour without warnings.
+- Deployment guides now treat the Entra app registration as part of a standard installation
+  and describe the shared multi-tenant registration model (one app, admin consent per tenant).
+
+### Added
+- Locale strings `chipUnavailable`, `autoUnavailable`, `autoUnavailableNoFallback`,
+  `composeUnavailable`, `reasonNotConfigured`, `reasonClientUnsupported`, `reasonMsalMissing`.
+- Smoke test coverage for the fallback warning.
+- Repository documentation restructured to the Cisco DevNet Code Exchange template: README
+  with use case, installation, configuration, usage, known issues, getting help/involved,
+  credits and licensing sections; `CODE_OF_CONDUCT.md`; `NOTICE` (replaces
+  `THIRD_PARTY_NOTICES.md`); `CONTRIBUTING.md` in the template's structure.
+
 ## [1.1.0] – 2026-09-17
 
 ### Changed

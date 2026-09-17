@@ -96,6 +96,11 @@ Placeholders in braces are replaced at runtime; keep them in the translation.
 | `footerLink`         |                         | Portal link text                                          |
 | `chipOk` `chipWarn` `chipErr` `chipWait` `chipInfo` | | Status chips                                  |
 | `chipPressSend`      |                         | Status chip after a compose-mode report                   |
+| `chipUnavailable`    |                         | Header chip when neither send mode is available            |
+| `autoUnavailable`    | `{reason}`              | Persistent notice: automatic send unavailable, fallback active |
+| `autoUnavailableNoFallback` | `{reason}`       | Persistent notice: automatic send unavailable, no fallback |
+| `composeUnavailable` |                         | Persistent notice: `SEND_MODE: "compose"` on a client without Mailbox 1.6 |
+| `reasonNotConfigured` `reasonClientUnsupported` `reasonMsalMissing` | | Text substituted into `{reason}` |
 | `sending`            | `{category}`            | Status while a report is in progress                      |
 | `composeOpened`      | `{address}`             | Status after the new-message form opened                  |
 | `reported`           | `{category}` `{address}` | Status after a graph-mode report                         |

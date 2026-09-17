@@ -17,7 +17,9 @@ file – they live in `src/locales/<lang>.js` (see `docs/LOCALIZATION.md`).
 
 | Key                          | Type      | Default                                            | Description                                                                                                                                                  |
 | ---------------------------- | --------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CLIENT_ID`                  | string    | `""`                                               | Entra *Application (client) ID*. Empty disables graph mode; the add-in then always opens a new message (compose mode).                                        |
+| `SEND_MODE`                  | string    | `"graph"`                                          | `"graph"`: send automatically through Microsoft Graph (needs `CLIENT_ID`). `"compose"`: always open a new message with the mail attached; no app registration, no warnings. |
+| `COMPOSE_FALLBACK`           | boolean   | `true`                                             | In graph mode: when automatic send is unavailable (missing `CLIENT_ID`, unsupported client) or fails, fall back to a new message and show a warning. `false`: show an error and never open a new message. |
+| `CLIENT_ID`                  | string    | `""`                                               | Entra *Application (client) ID* used by graph mode. Empty with `SEND_MODE: "graph"` → persistent warning in the pane and the compose fallback (if allowed).    |
 | `AUTHORITY`                  | string    | `https://login.microsoftonline.com/organizations`  | MSAL authority. Use `https://login.microsoftonline.com/<tenant-id>` for a single-tenant registration.                                                        |
 | `MOVE_AFTER_REPORT`          | boolean   | `true`                                             | After a successful graph-mode report, move the message to the category's `moveTo` folder. Requires the delegated `Mail.ReadWrite` permission.                 |
 | `SAVE_TO_SENT_DEFAULT`       | boolean   | `false`                                            | Default for the per-user "keep a copy in Sent Items" checkbox (graph mode). The user's choice is stored in `roamingSettings` and overrides this.              |
@@ -85,6 +87,22 @@ on `virus`, `ads` and `not_ads`.
 
 ```javascript
 CC_ADDRESSES: ["soc@contoso.com"],
+```
+
+**Shared multi-tenant app (one registration for every customer, as Cisco's add-in does):**
+
+```javascript
+SEND_MODE: "graph",
+CLIENT_ID: "<client ID of the shared app>",
+AUTHORITY: "https://login.microsoftonline.com/organizations",
+```
+
+Each customer tenant then only grants admin consent (`docs/DEPLOYMENT.md`, step 2).
+
+**Zero infrastructure (no Entra app), no warnings:**
+
+```javascript
+SEND_MODE: "compose",
 ```
 
 **Automatic mode, single tenant:**

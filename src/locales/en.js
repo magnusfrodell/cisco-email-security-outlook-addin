@@ -74,6 +74,13 @@ window.REPORTER_LOCALES.en = {
     chipWait: "Sending",
     chipInfo: "Info",
     chipPressSend: "Press Send",
+    chipUnavailable: "Unavailable",
+    autoUnavailable: "Automatic send is not available: {reason}. Reports will open as a new message instead.",
+    autoUnavailableNoFallback: "Automatic send is not available: {reason}. Contact your IT support.",
+    composeUnavailable: "This version of Outlook does not support the add-in.",
+    reasonNotConfigured: "the add-in is not fully configured (CLIENT_ID is missing)",
+    reasonClientUnsupported: "this version of Outlook does not support it",
+    reasonMsalMissing: "a required component could not be loaded",
 
     sending: "Sending report as {category} …",
     composeOpened: "A new message to {address} has been opened with the reported mail attached. Press Send in the new message to complete the report.",

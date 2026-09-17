@@ -27,16 +27,15 @@ Knapper kan skjules med `enabled: false` i `config.js`.
 
 ## Sådan virker det
 
-Tilføjelsesprogrammet har to afsendelsesmåder og vælger selv den bedste, når ruden åbnes:
+Standarden er **automatisk afsendelse**: mailen hentes som EML, sendes via Microsoft Graph på
+brugerens vegne og flyttes til Uønsket mail / Indbakke – ingen klik ud over kategorivalget. Det
+kræver en Entra-appregistrering (trin 2) og en Outlook-klient med Mailbox 1.14 og Nested App
+Auth.
 
-| Måde            | Hvad sker der                                                                                                                                                    | Forudsætninger                                                                                                   |
+| Måde            | Hvad sker der                                                                                                                                                    | Hvornår                                                                                                          |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Automatisk**  | Mailen hentes som EML, sendes via Microsoft Graph på brugerens vegne og flyttes til Uønsket mail / Indbakke. Ingen klik ud over kategorivalget.                    | `CLIENT_ID` sat i `config.js`, Entra-appregistrering (trin 2), Outlook med Mailbox 1.14 og Nested App Auth.       |
-| **Ny mail**     | Der åbnes en ny mail til Ciscos adresse med den valgte besked vedhæftet (= "videresend som vedhæftning"). Brugeren trykker Send.                                  | Ingen – virker i alle understøttede Outlook-klienter.                                                            |
-
-Automatisk afsendelse falder tilbage til *Ny mail*, hvis mailen er større end ca. 3 MB, og
-tilbyder *Send manuelt i stedet*, hvis afsendelsen fejler. Chippen øverst i ruden viser den
-aktive måde.
+| **Automatisk**  | Sendes via Graph, flyttes bagefter. Chippen øverst siger *Automatisk afsendelse*.                                                                                 | Standard, når `CLIENT_ID` er sat og klienten understøtter det.                                                    |
+| **Ny mail**     | Der åbnes en ny mail til Ciscos adresse med den valgte besked vedhæftet (= "videresend som vedhæftning"). Brugeren trykker Send.                                  | Reserve: når automatisk afsendelse ikke er tilgængelig (der vises en advarsel i ruden), når mailen er over ca. 3 MB, eller via *Send manuelt i stedet* efter en fejl. Kan slås fra med `COMPOSE_FALLBACK: false` eller gøres til eneste måde med `SEND_MODE: "compose"`. |
 
 Understøttede klienter: Outlook til Windows (klassisk og nyt Outlook, Microsoft 365), Outlook
 til Mac (Microsoft 365) og Outlook på nettet. Outlook til iOS/Android er ikke understøttet.
@@ -77,9 +76,13 @@ Hvis webstedet har en Content-Security-Policy, skal den tillade
 `https://appsforoffice.microsoft.com` (script), `https://login.microsoftonline.com` og
 `https://graph.microsoft.com` (connect).
 
-## Trin 2 – Entra-appregistrering (kun for automatisk afsendelse)
+## Trin 2 – Entra-appregistrering
 
-Spring trinnet over, hvis *Ny mail*-måden er tilstrækkelig. Så efterlades `CLIENT_ID` tom.
+Automatisk afsendelse er standard og kræver en appregistrering, så tilføjelsesprogrammet kan få
+Graph-tokens gennem Outlook. Indtil `CLIENT_ID` er sat, viser ruden en advarsel og åbner en ny
+mail i stedet. Beskrivelsen nedenfor er én registrering i jeres egen tenant; den engelske
+vejledning (`docs/DEPLOYMENT.md`, trin 2, model B) beskriver også en delt multi-tenant-app, hvor
+I kun giver admin consent.
 
 1. Gå til [entra.microsoft.com](https://entra.microsoft.com) → **Identity → Applications →
    App registrations → New registration**.
@@ -102,6 +105,8 @@ gennem Outlook (Nested App Authentication). Uden den fejler tokenhentning med AA
 
 ```javascript
 LANGUAGE: "auto",            // følger Outlooks sprog – eller "da" for dansk til alle
+SEND_MODE: "graph",          // standard; "compose" = altid ny mail
+COMPOSE_FALLBACK: true,      // ny mail, hvis automatisk afsendelse ikke er tilgængelig
 CLIENT_ID: "00000000-0000-0000-0000-000000000000",          // fra trin 2
 AUTHORITY: "https://login.microsoftonline.com/<tenant-id>", // jeres tenant-ID
 MOVE_AFTER_REPORT: true,
@@ -122,8 +127,9 @@ Upload filen igen til webstedet. Ingen ændringer i manifestet er nødvendige, n
    og vælg manifestet.
 3. Vælg en mail, klik **Rapportér til Cisco** i båndet (under *Mailsikkerhed*) og rapportér den
    som fx *Marketing*.
-4. Åbn **Teknisk log** nederst i ruden. Den viser den valgte afsendelsesmåde, årsagen hvis
-   automatisk afsendelse ikke er aktiv, og hvert trin i afsendelsen.
+4. Chippen øverst skal sige *Automatisk afsendelse*. Vises der i stedet en advarsel under
+   overskriften, er automatisk afsendelse ikke aktiv – åbn **Teknisk log** nederst i ruden; den
+   viser afsendelsesmåden, årsagen og hvert trin i afsendelsen.
 5. Sæt evt. `CC_ADDRESSES` til jeres egen adresse under test for at se den udgående rapport.
 
 ## Trin 5 – Udrul centralt via Microsoft 365 Admin Center
@@ -152,7 +158,7 @@ webstedet – Outlook henter altid den seneste version derfra.
 
 | Symptom                                                                    | Årsag og løsning                                                                                                                                                                    |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chippen viser *Åbner ny mail til afsendelse*, selv om `CLIENT_ID` er sat    | Åbn *Teknisk log*. Linjen *Send mode* viser årsagen: Outlook-klienten mangler Mailbox 1.14 eller NestedAppAuth 1.1 (opdater klienten), eller `lib/msal-browser.min.js` blev ikke indlæst (404). |
+| Advarslen *Automatisk afsendelse er ikke tilgængelig …* vises               | Åbn *Teknisk log*. Linjen *Send mode* viser årsagen: `CLIENT_ID` mangler (trin 2–3), Outlook-klienten mangler Mailbox 1.14 eller NestedAppAuth 1.1 (opdater klienten), eller `lib/msal-browser.min.js` blev ikke indlæst (404). Rapporter virker stadig via ny mail, medmindre `COMPOSE_FALLBACK` er `false`. |
 | Fejl med **AADSTS65001** / "mangler samtykke"                               | Admin consent er ikke givet. Trin 2, punkt 5.                                                                                                                                         |
 | Fejl med **AADSTS50011** (redirect URI)                                     | `brk-multihub://<host>` matcher ikke det hostnavn, `taskpane.html` er publiceret på. Skal være identisk med origin (inkl. port).                                                     |
 | Rapporten sendes, men mailen kunne ikke flyttes                            | `Mail.ReadWrite` mangler eller er ikke godkendt. Giv rettigheden, eller sæt `MOVE_AFTER_REPORT: false`.                                                                              |

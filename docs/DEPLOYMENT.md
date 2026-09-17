@@ -3,8 +3,8 @@
 Step-by-step, from a clone of this repository to a centrally deployed add-in. The Danish
 customer-facing version of this guide is `docs/INSTALLATION.da.md`.
 
-Time needed: about 30 minutes for compose mode, plus 15 minutes for the Entra app registration
-if you want automatic mode. Central deployment can then take a few hours to reach all users.
+Time needed: about 45 minutes including the Entra app registration that automatic send (the
+default) relies on. Central deployment can then take a few hours to reach all users.
 
 ## Prerequisites
 
@@ -46,9 +46,14 @@ repository settings with *Source: GitHub Actions*, run the workflow, then sidelo
 `https://<owner>.github.io/<repo>/manifest.xml`. For automatic mode the Entra redirect URI is
 `brk-multihub://<owner>.github.io`.
 
-## Step 2 – Entra app registration (automatic mode only)
+## Step 2 – Entra app registration
 
-Skip this step if compose mode is enough. Leave `CLIENT_ID` empty in that case.
+Automatic send is the default and needs an Entra app registration to obtain Graph tokens
+through Outlook. Until `CLIENT_ID` is set, the pane shows a warning and opens a new message
+instead. Two models:
+
+**A. One registration per customer tenant** (self-contained, recommended when the customer
+hosts the files):
 
 1. [entra.microsoft.com](https://entra.microsoft.com) → **Identity → Applications →
    App registrations → New registration**.
@@ -63,9 +68,33 @@ Skip this step if compose mode is enough. Leave `CLIENT_ID` empty in that case.
    - `Mail.ReadWrite` – move the reported message (omit if you set `MOVE_AFTER_REPORT: false`)
 5. **Grant admin consent for \<organisation\>** so users are never prompted.
 
+**B. One shared multi-tenant registration** (the model Cisco's own add-in uses – one app owned
+by whoever hosts the files, consented by each customer tenant):
+
+1. Register the app as in A, but with **Supported account types:** *Accounts in any
+   organizational directory (multitenant)*, and add one SPA redirect URI
+   `brk-multihub://<host>` for every host the files are served from (e.g. the GitHub Pages
+   host `brk-multihub://<owner>.github.io`).
+2. Add the same two delegated permissions. Do **not** add a client secret; none is needed.
+3. Ship its client ID as the default in `config.js` with
+   `AUTHORITY: "https://login.microsoftonline.com/organizations"`.
+4. Each customer's Global Administrator grants consent once by opening
+
+   ```text
+   https://login.microsoftonline.com/<customer-tenant-id-or-domain>/adminconsent?client_id=<client-id>
+   ```
+
+   and accepting. The app then appears under *Enterprise applications* in their tenant with
+   the two permissions, and their users are never prompted.
+
+Model B means one host and one app for everybody; model A means the customer controls both.
+Mixing is fine: a customer can start on B and move to A later by changing `CLIENT_ID`,
+`AUTHORITY` and the host.
+
 Why the odd redirect URI: `brk-multihub://<origin>` tells the Microsoft identity platform that
 the add-in may obtain tokens *through* Outlook (Nested App Authentication). Without it, token
-requests fail with `AADSTS50011`.
+requests fail with `AADSTS50011`. Compose-only deployments (`SEND_MODE: "compose"`) skip this
+step entirely.
 
 ## Step 3 – Configure
 
@@ -73,8 +102,10 @@ Edit `src/config.js` on the host:
 
 ```javascript
 LANGUAGE: "auto",                                             // or "da" / "en" / "sv" for everyone
-CLIENT_ID: "00000000-0000-0000-0000-000000000000",           // from step 2, or "" for compose mode
-AUTHORITY: "https://login.microsoftonline.com/<tenant-id>",  // tenant ID from step 2
+SEND_MODE: "graph",                                           // default; "compose" = always a new message
+COMPOSE_FALLBACK: true,                                       // new message when automatic send is unavailable
+CLIENT_ID: "00000000-0000-0000-0000-000000000000",           // from step 2
+AUTHORITY: "https://login.microsoftonline.com/<tenant-id>",  // model A; "…/organizations" for model B
 MOVE_AFTER_REPORT: true,
 CC_ADDRESSES: [],                                             // e.g. ["soc@contoso.com"]
 ```
@@ -88,8 +119,9 @@ update.
 2. **My add-ins → Add a custom add-in → Add from file** and pick your manifest.
 3. Select a message, click **Report to Cisco** (group *Email security*; *Rapportér til Cisco* /
    *Rapportera till Cisco* in a Danish or Swedish Outlook) and report it as, say, *Marketing*.
-4. Expand **Technical log** at the bottom of the pane. It shows the language chosen and why, the
-   send mode, the reason if automatic mode is not active, and every step of the send.
+4. The header chip must say *Automatic send*. If a warning appears under the header instead,
+   automatic send is not active – expand **Technical log** at the bottom of the pane: it shows
+   the language chosen and why, the send mode, the reasons, and every step of the send.
 5. Switch the language in the pane's settings and check that the ribbon (which follows the
    Outlook display language) and the pane show what you expect.
 6. During testing, set `CC_ADDRESSES` to your own address to see the outgoing report.

@@ -48,7 +48,7 @@ CHAPTERS = [
     ("troubleshooting", "Troubleshooting", DOCS / "TROUBLESHOOTING.md"),
     ("security", "Security", ROOT / "SECURITY.md"),
     ("changelog", "Changelog", ROOT / "CHANGELOG.md"),
-    ("third-party", "Third-party notices", ROOT / "THIRD_PARTY_NOTICES.md"),
+    ("notice", "Notice", ROOT / "NOTICE"),
 ]
 
 # links inside the Markdown that should point at chapters of this file
@@ -62,7 +62,9 @@ LINK_MAP = {
     "docs/index.html": "overview",
     "SECURITY.md": "security",
     "CHANGELOG.md": "changelog",
-    "THIRD_PARTY_NOTICES.md": "third-party",
+    "NOTICE": "notice",
+    "CONTRIBUTING.md": None,
+    "CODE_OF_CONDUCT.md": None,
     "LICENSE": None,
 }
 
@@ -104,12 +106,14 @@ def rewrite_links(body: str, slug: str) -> str:
             return m.group(0)
         return f'href="#{chapter}--{anchor}"' if anchor else f'href="#{chapter}"'
 
-    body = re.sub(r'href="((?:docs/)?[A-Za-z_.-]+\.(?:md|html)|LICENSE)(?:#([^"]+))?"', link, body)
+    body = re.sub(r'href="(?:\./)?((?:docs/)?[A-Za-z_.-]+\.(?:md|html)|LICENSE|NOTICE)(?:#([^"]+))?"', link, body)
     return body
 
 
 def render_chapter(slug: str, title: str, path: pathlib.Path) -> tuple[str, list[tuple[str, str]]]:
     text = path.read_text(encoding="utf-8")
+    if path.suffix == "":  # plain-text files such as NOTICE
+        text = f"# {title}\n\n```text\n{text.rstrip()}\n```\n"
     text = embed_images(text, path.parent)
     text = mermaid_blocks(text)
     md = markdown.Markdown(

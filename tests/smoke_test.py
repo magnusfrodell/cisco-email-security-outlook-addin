@@ -38,11 +38,23 @@ SRC = ROOT / "src"
 STUB = ROOT / "tests" / "office-stub.js"
 
 
-def build_preview(tmp: pathlib.Path) -> pathlib.Path:
-    """Copy src/ to a temp dir and swap the hosted office.js for the stub."""
-    dest = tmp / "src"
+def build_preview(tmp: pathlib.Path, graph_ready: bool = False) -> pathlib.Path:
+    """Copy src/ to a temp dir and swap the hosted office.js for the stub.
+
+    graph_ready=True simulates a fully configured deployment (CLIENT_ID set, client with
+    NestedAppAuth) so detectMode() picks graph. Sending is never exercised in that variant.
+    """
+    dest = tmp / ("graph" if graph_ready else "compose")
     shutil.copytree(SRC, dest)
-    shutil.copy(STUB, dest / "office-stub.js")
+    stub = STUB.read_text(encoding="utf-8")
+    if graph_ready:
+        stub, n = re.subn(r'var supported = \{ Mailbox: "1\.15" \};', 'var supported = { Mailbox: "1.15", NestedAppAuth: "1.1" };', stub)
+        assert n == 1, "supported sets not found in stub"
+        cfg = (dest / "config.js").read_text(encoding="utf-8")
+        cfg, n = re.subn(r'CLIENT_ID: "",', 'CLIENT_ID: "00000000-0000-0000-0000-000000000000",', cfg)
+        assert n == 1, "CLIENT_ID not found in config.js"
+        (dest / "config.js").write_text(cfg, encoding="utf-8")
+    (dest / "office-stub.js").write_text(stub, encoding="utf-8")
     html = (dest / "taskpane.html").read_text(encoding="utf-8")
     html, n = re.subn(r'src="https://appsforoffice\.microsoft\.com/[^"]+"', 'src="office-stub.js"', html)
     assert n == 1, "office.js script tag not found in taskpane.html"
@@ -92,6 +104,11 @@ async def run(screenshots: pathlib.Path | None) -> int:
             check(len(buttons) == len(enabled), f"{len(enabled)} enabled categories rendered as buttons ({len(buttons)} found)")
             chip = (await page.text_content("#mode-chip") or "").strip()
             check(chip != "" and "Starter" not in chip, f"mode chip set ({chip!r})")
+            check(await page.is_visible("#notice") and await page.get_attribute("#notice", "data-kind") == "warn",
+                  "graph is the default: warning notice shown when CLIENT_ID is empty")
+            notice = await page.text_content("#notice-text") or ""
+            check("CLIENT_ID" in notice and "ny mail" in notice, f"notice explains the fallback in Danish ({notice[:60]!r}…)")
+            check(await page.is_enabled('button[data-id="spam"]'), "buttons enabled – compose fallback active")
             check(await page.is_visible("#settings"), "settings panel visible (language selector)")
             check(await page.is_hidden("#keep-copy-row"), "keep-copy row hidden in compose mode")
             check((await page.text_content("#mail-subject") or "").startswith("Din konto"), "selected mail subject shown")
@@ -101,7 +118,7 @@ async def run(screenshots: pathlib.Path | None) -> int:
 
             if screenshots:
                 screenshots.mkdir(parents=True, exist_ok=True)
-                await page.screenshot(path=str(screenshots / "taskpane.png"), full_page=True)
+                await page.screenshot(path=str(screenshots / "taskpane-fallback.png"), full_page=True)
 
             # --- language switching ----------------------------------------------------
             await page.select_option("#lang-select", "sv")
@@ -110,16 +127,13 @@ async def run(screenshots: pathlib.Path | None) -> int:
             check(await page.get_attribute("html", "lang") == "sv", "<html lang> follows the switch")
             first_label = await page.text_content(".btn-cat .btn-cat-label")
             check(first_label == "Skräppost", f"category buttons re-rendered in Swedish ({first_label!r})")
+            check("CLIENT_ID saknas" in (await page.text_content("#notice-text") or ""), "notice re-rendered in Swedish")
             saved = await page.evaluate("Office.context.roamingSettings.get('language')")
             check(saved == "sv", "language choice saved in roamingSettings")
-            if screenshots:
-                await page.screenshot(path=str(screenshots / "taskpane-sv.png"), full_page=True)
 
             await page.select_option("#lang-select", "en")
             await page.wait_for_timeout(300)
             check(await page.text_content(".head-title") == cfg["titles"]["en"], "switching to English changes the title")
-            if screenshots:
-                await page.screenshot(path=str(screenshots / "taskpane-en.png"), full_page=True)
 
             await page.select_option("#lang-select", "auto")
             await page.wait_for_timeout(300)
@@ -152,6 +166,28 @@ async def run(screenshots: pathlib.Path | None) -> int:
             check(not await page.is_enabled('button[data-id="spam"]'), "buttons disabled when no mail is selected")
 
             check(not errors, "no JavaScript errors" + (f": {errors}" if errors else ""))
+
+            # --- fully configured deployment: graph must be chosen, no warning ---------------
+            graph_path = build_preview(pathlib.Path(tmp), graph_ready=True)
+            gpage = await browser.new_page(viewport={"width": 360, "height": 900}, device_scale_factor=2)
+            gerrors: list[str] = []
+            gpage.on("pageerror", lambda e: gerrors.append(str(e)))
+            await gpage.goto(graph_path.as_uri())
+            await gpage.wait_for_timeout(500)
+            chip = (await gpage.text_content("#mode-chip") or "").strip()
+            check(chip == "Automatisk afsendelse", f"configured deployment selects graph mode ({chip!r})")
+            check(await gpage.is_hidden("#notice"), "no warning notice in graph mode")
+            check(await gpage.is_visible("#keep-copy-row"), "keep-copy setting visible in graph mode")
+            check(await gpage.is_enabled('button[data-id="spam"]'), "buttons enabled in graph mode")
+            if screenshots:
+                await gpage.screenshot(path=str(screenshots / "taskpane.png"), full_page=True)
+                await gpage.select_option("#lang-select", "en")
+                await gpage.wait_for_timeout(300)
+                await gpage.screenshot(path=str(screenshots / "taskpane-en.png"), full_page=True)
+                await gpage.select_option("#lang-select", "sv")
+                await gpage.wait_for_timeout(300)
+                await gpage.screenshot(path=str(screenshots / "taskpane-sv.png"), full_page=True)
+            check(not gerrors, "no JavaScript errors in graph mode" + (f": {gerrors}" if gerrors else ""))
             await browser.close()
 
     print(f"\n{len(failures)} failure(s)")

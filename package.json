@@ -1,6 +1,6 @@
 {
   "name": "cisco-email-security-outlook-addin",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Customizable, localized (en/da/sv) Outlook add-in that submits spam, phishing, virus, marketing and false-positive reports to Cisco Talos",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",

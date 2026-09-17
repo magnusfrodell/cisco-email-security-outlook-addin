@@ -74,6 +74,13 @@ window.REPORTER_LOCALES.sv = {
     chipWait: "Skickar",
     chipInfo: "Info",
     chipPressSend: "Tryck Skicka",
+    chipUnavailable: "Inte tillgängligt",
+    autoUnavailable: "Automatisk sändning är inte tillgänglig: {reason}. Rapporter öppnas som ett nytt mejl i stället.",
+    autoUnavailableNoFallback: "Automatisk sändning är inte tillgänglig: {reason}. Kontakta er IT-support.",
+    composeUnavailable: "Den här Outlook-versionen stöder inte tillägget.",
+    reasonNotConfigured: "tillägget är inte färdigkonfigurerat (CLIENT_ID saknas)",
+    reasonClientUnsupported: "den här Outlook-versionen stöder det inte",
+    reasonMsalMissing: "en nödvändig komponent kunde inte läsas in",
 
     sending: "Skickar rapport som {category} …",
     composeOpened: "Ett nytt mejl till {address} har öppnats med det rapporterade mejlet bifogat. Tryck Skicka i det nya mejlet för att slutföra rapporteringen.",

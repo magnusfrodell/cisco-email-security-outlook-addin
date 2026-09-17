@@ -74,6 +74,13 @@ window.REPORTER_LOCALES.da = {
     chipWait: "Sender",
     chipInfo: "Info",
     chipPressSend: "Tryk Send",
+    chipUnavailable: "Ikke tilgængelig",
+    autoUnavailable: "Automatisk afsendelse er ikke tilgængelig: {reason}. Rapporter åbnes som en ny mail i stedet.",
+    autoUnavailableNoFallback: "Automatisk afsendelse er ikke tilgængelig: {reason}. Kontakt jeres IT-support.",
+    composeUnavailable: "Denne Outlook-version understøtter ikke tilføjelsesprogrammet.",
+    reasonNotConfigured: "tilføjelsesprogrammet er ikke færdigkonfigureret (CLIENT_ID mangler)",
+    reasonClientUnsupported: "denne Outlook-version understøtter det ikke",
+    reasonMsalMissing: "en nødvendig komponent kunne ikke indlæses",
 
     sending: "Sender rapport som {category} …",
     composeOpened: "En ny mail til {address} er åbnet med den rapporterede mail vedhæftet. Tryk Send i den nye mail for at fuldføre rapporteringen.",
