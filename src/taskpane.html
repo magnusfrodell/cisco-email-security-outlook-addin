@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rapportér mail til Cisco</title>
+  <!-- Office.js skal indlæses i <head> før al anden kode -->
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+  <link rel="stylesheet" href="taskpane.css">
+</head>
+<body>
+  <main id="app" class="app">
+
+    <header class="head">
+      <div class="head-title" data-str="title">Rapportér mail til Cisco</div>
+      <span id="mode-chip" class="chip chip-neutral" data-str="chipStarting">Starter …</span>
+    </header>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden>
+      <span id="status-chip" class="chip chip-neutral"></span>
+      <div id="status-text" class="status-text"></div>
+      <div id="status-actions" class="status-actions"></div>
+    </div>
+
+    <section class="panel">
+      <h2 class="section" data-str="selectedMail">Valgt mail</h2>
+      <div class="mail">
+        <div id="mail-subject" class="mail-subject">–</div>
+        <div id="mail-from" class="mail-from"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section" id="group-missed-title"></h2>
+      <p class="help" data-str="missedHelp">Mailen ligger i indbakken, men burde have været stoppet.</p>
+      <div id="group-missed" class="btn-list" role="group"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section" id="group-false_positive-title"></h2>
+      <p class="help" data-str="falsePositiveHelp">Mailen blev fejlagtigt markeret som spam eller marketing.</p>
+      <div id="group-false_positive" class="btn-list" role="group"></div>
+    </section>
+
+    <section class="panel panel-settings" id="settings">
+      <h2 class="section" data-str="settings">Indstillinger</h2>
+      <label class="check">
+        <input type="checkbox" id="keep-copy">
+        <span data-str="keepCopy">Behold en kopi af rapporten i Sendt post</span>
+      </label>
+    </section>
+
+    <details class="log">
+      <summary data-str="logSummary">Teknisk log</summary>
+      <pre id="log"></pre>
+    </details>
+
+    <footer class="foot">
+      <span data-str="footer">Rapporter sendes til Cisco Talos. Følg status på </span><a
+        href="https://talosintelligence.com/email_status_portal" target="_blank" rel="noopener"
+        data-str="footerLink">Email Status Portal</a>.
+    </footer>
+
+  </main>
+
+  <script src="config.js"></script>
+  <script src="lib/msal-browser.min.js"></script>
+  <script src="taskpane.js"></script>
+</body>
+</html>

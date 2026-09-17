@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    name: Syntax, manifest and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: JavaScript syntax check
+        run: |
+          node --check src/taskpane.js
+          node --check src/config.js
+          node --check examples/config.sv-SE.js
+          node --check tests/office-stub.js
+
+      - name: Validate manifest (Microsoft validation service)
+        run: npx --yes office-addin-manifest validate src/manifest.xml
+
+      - name: Version numbers in sync
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          js=$(grep -oP 'var VERSION = "\K[0-9.]+' src/taskpane.js)
+          xml=$(grep -oP '<Version>\K[0-9.]+' src/manifest.xml)
+          echo "package.json=$pkg taskpane.js=$js manifest=$xml"
+          test "$pkg" = "$js" && test "${xml%.*}" = "$pkg"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Smoke test
+        run: python tests/smoke_test.py

@@ -1,0 +1,24 @@
+{
+  "name": "outlook-cisco-submission-addin",
+  "version": "1.0.0",
+  "description": "Localized (Danish) Outlook add-in that submits spam, phishing, virus, marketing and false-positive reports to Cisco Talos",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "node --check src/taskpane.js && node --check src/config.js && node --check examples/config.sv-SE.js",
+    "validate": "office-addin-manifest validate src/manifest.xml",
+    "test": "python3 tests/smoke_test.py",
+    "docs": "python3 scripts/build-docs.py",
+    "dev-certs": "office-addin-dev-certs install",
+    "serve": "http-server src -S -C \"$HOME/.office-addin-dev-certs/localhost.crt\" -K \"$HOME/.office-addin-dev-certs/localhost.key\" -p 3000 -c-1",
+    "set-host": "scripts/set-host.sh"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "office-addin-dev-certs": "^2.0.0",
+    "office-addin-manifest": "^2.0.0"
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+package-lock.json
+_site/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+# local manifests with real hostnames
+manifest-*.xml
+!src/manifest.xml
