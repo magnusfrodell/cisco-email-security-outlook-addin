@@ -1,6 +1,6 @@
 # Rapportér mail til Cisco
 
-[![CI](https://github.com/OWNER/outlook-cisco-submission-addin/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/outlook-cisco-submission-addin/actions/workflows/ci.yml)
+[![CI](https://github.com/magnusfrodell/outlook-cisco-submission-addin/actions/workflows/ci.yml/badge.svg)](https://github.com/magnusfrodell/outlook-cisco-submission-addin/actions/workflows/ci.yml)
 
 An Outlook add-in, in Danish, that lets users report spam, phishing, virus and marketing mail to
 Cisco Talos – and report legitimate mail that was wrongly stopped. Reports go to Cisco's
@@ -29,7 +29,7 @@ strings live in one file, so the same code serves Swedish, Norwegian or any othe
 ## Quick start
 
 ```bash
-git clone https://github.com/OWNER/outlook-cisco-submission-addin.git
+git clone https://github.com/magnusfrodell/outlook-cisco-submission-addin.git
 cd outlook-cisco-submission-addin
 scripts/set-host.sh addin.firma.dk      # put your HTTPS host into src/manifest.xml
 # upload src/ to https://addin.firma.dk/ , then sideload src/manifest.xml via https://aka.ms/olksideload
