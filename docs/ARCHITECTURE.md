@@ -13,13 +13,13 @@ backend and no build step. Everything under `src/` is deployed unchanged to any 
 ```mermaid
 flowchart LR
     subgraph Outlook["Outlook (Windows / Mac / web)"]
-        R[Ribbon button<br/>Rapportér mail]
+        R[Ribbon button<br/>Report to Cisco]
         TP[Task pane<br/>taskpane.html + js]
         OJS[Office.js]
     end
     subgraph Host["Static HTTPS host"]
         M[manifest.xml]
-        F[taskpane.html/css/js<br/>config.js, lib/, assets/]
+        F[taskpane.html/css/js<br/>config.js, locales/, lib/, assets/]
     end
     subgraph MS["Microsoft 365"]
         EX[Exchange Online]
@@ -176,12 +176,16 @@ Cisco documents for manual submissions ("forward as attachment").
 
 ```text
 src/
-├── manifest.xml          Office add-in manifest (da-DK). Placeholder host addin.example.com.
+├── manifest.xml          Office add-in manifest (en-US default, da-DK/sv-SE overrides).
+│                         Placeholder host addin.example.com.
 ├── taskpane.html         Pane markup. Every visible text node has data-str="<key>".
 ├── taskpane.css          Styling; no framework.
 ├── taskpane.js           All logic (this document, section 5).
-├── config.js             Settings, categories and every user-facing string.
-├── support.html          Static support page referenced by <SupportUrl>.
+├── config.js             Settings and category structure. No user-facing text.
+├── locales/da.js         One file per language: name, bodyText, groups, categories, strings.
+├── locales/en.js
+├── locales/sv.js
+├── support.html          Static support page (en/da/sv) referenced by <SupportUrl>.
 ├── assets/icon-*.png     Ribbon and store icons, 16/32/64/80/128 px.
 └── lib/msal-browser.min.js  MSAL.js 4.30.0 (LTS), self-hosted. Loaded always, used in graph mode.
 tests/
@@ -193,8 +197,9 @@ scripts/
 ```
 
 Load order in `taskpane.html` matters: `office.js` in `<head>`, then `config.js` (defines
-`window.RAPPORT_CONFIG`), then `lib/msal-browser.min.js` (defines the `msal` global), then
-`taskpane.js`. `taskpane.js` reads the config once at load; changing `config.js` on the host
+`window.REPORTER_CONFIG`), then every `locales/*.js` (each adds one entry to
+`window.REPORTER_LOCALES`), then `lib/msal-browser.min.js` (defines the `msal` global), then
+`taskpane.js`. `taskpane.js` reads config and locales once at load; changing them on the host
 takes effect the next time a pane opens.
 
 ## 5. `taskpane.js` reference
@@ -204,25 +209,40 @@ events it attaches. Global state lives in one object:
 
 ```javascript
 var state = {
-  mode: "compose",   // "graph" | "compose", decided by detectMode()
-  msalApp: null,     // lazily created NestablePublicClientApplication
-  busy: false,       // a report is in progress; buttons are disabled
-  item: null         // Office.context.mailbox.item at last refresh, or null
+  mode: "compose",      // "graph" | "compose", decided by detectMode()
+  modeDetected: false,  // detectMode() has run (the chip shows "starting" before that)
+  language: null,       // active locale key, e.g. "da"
+  msalApp: null,        // lazily created NestablePublicClientApplication
+  busy: false,          // a report is in progress; buttons are disabled
+  item: null            // Office.context.mailbox.item at last refresh, or null
 };
 ```
 
-### 5.1 Strings
+Two module-level variables hold the active locale: `L` (the whole locale object) and `S`
+(`L.strings`). They are swapped by `applyLocale()`.
 
-| Function            | Purpose                                                                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `t(key, params)`    | Returns `STRINGS[key]` with `{name}` placeholders replaced from `params`. Unknown keys return the key itself, so a missing translation is visible rather than fatal. |
-| `applyStrings()`    | Fills every `[data-str]` element from `STRINGS`, sets `document.title` and `<html lang>` from `LANG`. Runs once in `init()`.               |
+### 5.1 Languages and strings
+
+| Function                      | Purpose                                                                                                                                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `languages()`                 | Keys of `REPORTER_LOCALES` – the loaded locale files.                                                                                                                                                                   |
+| `matchLanguage(tag)`          | Maps `sv-SE`, `SV`, `da_dk` … to a loaded locale key, first exactly, then by base language. `null` if nothing matches.                                                                                                  |
+| `savedLanguage()`             | The user's choice from `roamingSettings` (`"auto"` or a locale key), or `null`.                                                                                                                                         |
+| `displayLanguage()`           | `Office.context.displayLanguage`, guarded.                                                                                                                                                                              |
+| `resolveLanguage()`           | Precedence: user choice (if the selector is enabled) → `LANGUAGE` unless `"auto"` → Outlook display language → `DEFAULT_LANGUAGE` → first locale. Logs the source.                                                    |
+| `t(key, params)`              | Returns `S[key]` with `{name}` placeholders replaced from `params`. Unknown keys return the key itself, so a missing translation is visible rather than fatal.                                                          |
+| `labelOf(cat)` / `hintOf(cat)` | Category label and hint from `L.categories[cat.id]`; fall back to the id / empty string.                                                                                                                              |
+| `bodyText()`                  | `L.bodyText` – the body of the report mail.                                                                                                                                                                             |
+| `applyStrings()`              | Fills every `[data-str]` element from `S` and sets `document.title`.                                                                                                                                                    |
+| `applyLocale(code)`           | Switches the pane: sets `L`/`S`/`state.language` and `<html lang>`, then `applyStrings()`, `renderCategories()`, `updateModeChip()`, `renderLanguageSelector()`, `clearStatus()`. Called at startup and on every switch. |
+| `renderLanguageSelector()`    | Fills the `<select>` with *Automatic* plus one option per locale (`name`), selects the saved choice, hides the row when the selector is disabled or only one locale is loaded.                                           |
+| `initLanguageSelector()`      | On change: saves the value to `roamingSettings`, re-resolves and applies the locale, refreshes the item view.                                                                                                           |
 
 ### 5.2 Logging
 
 | Function              | Purpose                                                                                                              |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `log(level, msg, extra)` | Writes `HH:MM:SS LEVEL msg extra` to the in-pane `<pre id="log">` and to the console with the `[CiscoRapport]` prefix. `extra` is JSON-serialised. Levels: `info`, `warn`, `error`. |
+| `log(level, msg, extra)` | Writes `HH:MM:SS LEVEL msg extra` to the in-pane `<pre id="log">` and to the console with the `[CiscoReporter]` prefix. `extra` is JSON-serialised. Levels: `info`, `warn`, `error`. |
 | `errText(e)`          | Normalises an `Error`, MSAL error or string to `Name: code: message`.                                                |
 
 Log messages are English and technical; they are meant for support staff, not end users.
@@ -236,15 +256,17 @@ User-facing status text always goes through `t()`.
 | `setStatus(kind, text, opts)` | Shows the status box (`ok`, `warn`, `err`, `wait`, `neutral`), optional chip override (`opts.chip`) and optional **Send manually instead** button (`opts.retryCompose = category`). Scrolls the box into view (respects `prefers-reduced-motion`). |
 | `clearStatus()`          | Hides the status box; called when the selected item changes.                                                         |
 | `setButtonsEnabled(on)`  | Enables/disables all category buttons.                                                                               |
-| `renderCategories()`     | Builds one `<button class="btn-cat" data-id=…>` per enabled category into its group container and sets group titles. |
+| `updateModeChip()`       | Header chip text from `state.mode`/`state.modeDetected` in the active language.                                       |
+| `renderCategories()`     | Clears both group containers, sets the group titles from the locale, and builds one `<button class="btn-cat" data-id=…>` per enabled category with the localized label and hint. Re-run on every language switch. |
 | `refreshItem()`          | Reads `Office.context.mailbox.item`, shows subject/sender or the "no mail selected" state. Bound to `ItemChanged` for pinned panes. |
 
 ### 5.4 Settings
 
 `keepCopy()` reads the per-user `keepCopy` value from `Office.context.roamingSettings`, falling
-back to `SAVE_TO_SENT_DEFAULT`. `initSettings()` wires the checkbox and persists changes with
-`roamingSettings.saveAsync`. The settings panel is hidden in compose mode because Outlook's own
-Send decides what goes to Sent Items there.
+back to `SAVE_TO_SENT_DEFAULT`. `initSettings()` wires the checkbox (and the language selector)
+and persists changes with `roamingSettings.saveAsync`. `updateSettingsVisibility()` hides the
+keep-copy row in compose mode (Outlook's own Send decides what goes to Sent Items there) and
+hides the whole panel when neither row is visible.
 
 ### 5.5 Sending
 
@@ -272,11 +294,11 @@ and the technical detail is in the log, never lost.
 
 `Office.onReady` → host check → `init()`:
 
-1. log diagnostics (add-in version, host, platform, Office version);
-2. `applyStrings()`;
-3. `renderCategories()`;
-4. `initSettings()`;
-5. `detectMode()` (logs the reasons if graph mode is not available);
+1. log diagnostics (add-in version, host, platform, Office version, display language);
+2. stop with an error status if no locale file is loaded;
+3. `applyLocale(resolveLanguage())` – strings, group titles, buttons, selector;
+4. `initSettings()` – keep-copy checkbox and language selector;
+5. `detectMode()` (logs the reasons if graph mode is not available) and settings visibility;
 6. `refreshItem()`;
 7. register the `ItemChanged` handler (Mailbox 1.5+) so a pinned pane follows the selection.
 
@@ -285,15 +307,15 @@ and the technical detail is in the log, never lost.
 | Element                                   | Value / purpose                                                                                                  |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `Id`                                      | `8cec0077-122f-4b5b-a7ec-b779f92668c7`. Generate a new GUID if you fork the add-in for another organisation.     |
-| `Version`                                 | Four-part, e.g. `1.0.0.0`. Must be bumped for the admin center to accept an update.                              |
-| `DefaultLocale`                           | `da-DK`. All strings are plain `DefaultValue`s; see `docs/LOCALIZATION.md` for per-locale overrides.               |
+| `Version`                                 | Four-part, e.g. `1.1.0.0`. Must be bumped for the admin center to accept an update.                              |
+| `DefaultLocale`                           | `en-US`. `Description`, group label, button label and tooltip carry `Override` elements for `da-DK` and `sv-SE`; Outlook picks the user's language. `DisplayName` is the same in all languages. See `docs/LOCALIZATION.md`. |
 | `AppDomains`                              | The add-in host and `https://login.microsoftonline.com` (interactive MSAL fallback).                             |
 | `Requirements` / `bt:Sets`                | Mailbox 1.6 minimum – `displayNewMessageForm` is the floor. Graph mode is detected at runtime, not in the manifest. |
 | `FormSettings` → `SourceLocation`         | `taskpane.html`, used by clients that ignore `VersionOverrides` (none in practice, but required by the schema).  |
 | `Permissions`                             | `ReadWriteItem`.                                                                                                 |
 | `Rule`                                    | `ItemIs Message Read` – the button only appears when reading a message.                                          |
-| `VersionOverrides` 1.1 → `MessageReadCommandSurface` | One group (`Mailsikkerhed`) with one `ShowTaskpane` button (`Rapportér mail`), `SupportsPinning` true.  |
-| `Resources`                               | Icons 16/32/80, task pane URL, group label, button label, tooltip.                                               |
+| `VersionOverrides` 1.1 → `MessageReadCommandSurface` | One group (*Email security* / *Mailsikkerhed* / *E-postsäkerhet*) with one `ShowTaskpane` button (*Report to Cisco* / *Rapportér til Cisco* / *Rapportera till Cisco*), `SupportsPinning` true. |
+| `Resources`                               | Icons 16/32/80, task pane URL, group label, button label, tooltip – the strings with locale overrides.            |
 
 The manifest is validated in CI with Microsoft's `office-addin-manifest validate`, which also
 reports the supported platforms (Outlook on Windows, Mac and web).
@@ -315,15 +337,17 @@ Requirement sets used: Mailbox 1.6 (`displayNewMessageForm`), 1.5 (`ItemChanged`
 ## 8. Testing
 
 `tests/office-stub.js` provides just enough of the `Office` global to render the pane in a
-normal browser: requirement-set answers (Mailbox 1.15, no NestedAppAuth → compose mode), a fake
-selected message, `roamingSettings`, `displayNewMessageForm(Async)` that records its arguments,
-and an `ItemChanged` hook.
+normal browser: requirement-set answers (Mailbox 1.15, no NestedAppAuth → compose mode),
+`displayLanguage` `da-DK`, a fake selected message, `roamingSettings`,
+`displayNewMessageForm(Async)` that records its arguments, and an `ItemChanged` hook.
 
 `tests/smoke_test.py` copies `src/` to a temp directory, swaps the hosted `office.js` for the
-stub, and drives the pane with Playwright: strings from config, one button per enabled category,
-compose flow addressed to the right Cisco address with an item attachment, status rendering,
-button enable/disable on selection change, and zero JavaScript errors. It can also write the
-screenshots used in the documentation (`--screenshots docs/images`).
+stub, and drives the pane with Playwright: automatic language resolution (da-DK → Danish), one
+button per enabled category, the language selector (switch to Swedish and English, back to
+automatic, choice persisted), the compose flow addressed to the right Cisco address with an
+item attachment and localized subject/body, status rendering, button enable/disable on selection
+change, and zero JavaScript errors. It can also write the screenshots used in the documentation
+(`--screenshots docs/images`).
 
 CI (`.github/workflows/ci.yml`) runs the syntax check, the manifest validator, a version
 consistency check and the smoke test on every push and pull request.
@@ -342,4 +366,6 @@ Graph mode cannot be exercised without a real Outlook and tenant; see
   later without redeploying the manifest.
 - **Self-hosted MSAL.** No CDN dependency, no CSP surprises, and the version is pinned by
   what is in the repository.
-- **Strings in `config.js`.** One file to translate; the JavaScript stays language-neutral.
+- **One locale file per language.** Translating is copying a file; the JavaScript stays
+  language-neutral, and the manifest carries the same languages as overrides so ribbon and pane
+  agree. Config holds structure (ids, addresses, folders), locales hold words.

@@ -194,14 +194,14 @@ def build(out: pathlib.Path) -> None:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rapportér mail til Cisco – documentation v{ver}</title>
+<title>Cisco Email Security Reporter – documentation v{ver}</title>
 <style>{CSS}{pyg}</style>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
 <body>
 <button class="toggle" id="toggle" aria-label="Menu">☰ Menu</button>
 <nav class="side" id="side">
-  <div class="brand"><strong>Rapportér mail til Cisco</strong><span>Outlook add-in · v{ver} · built {built}</span></div>
+  <div class="brand"><strong>Cisco Email Security Reporter</strong><span>Outlook add-in · v{ver} · built {built}</span></div>
   <div class="grp">Contents</div>
   {''.join(nav)}
 </nav>

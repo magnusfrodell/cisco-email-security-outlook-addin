@@ -1,0 +1,81 @@
+/*
+ * Svenska (sv) – språkfil för Cisco Email Security Reporter.
+ * Alla texter som användaren ser i rutan. Se docs/LOCALIZATION.md.
+ */
+window.REPORTER_LOCALES = window.REPORTER_LOCALES || {};
+window.REPORTER_LOCALES.sv = {
+  name: "Svenska",
+
+  /* Brödtext i rapportmejlet till Cisco */
+  bodyText: "Rapport skickad från Outlook-tillägget. Det rapporterade mejlet är bifogat som .eml. Den här texten kan ignoreras.",
+
+  /* Rubriker över de två knappgrupperna */
+  groups: {
+    missed: "Felaktigt levererat till inkorgen",
+    false_positive: "Felaktigt stoppat eller markerat"
+  },
+
+  /* Knapptexter per kategori-id (id:n definieras i config.js) */
+  categories: {
+    spam:    { label: "Skräppost",                      hint: "Oönskad massutskickad e-post som slapp igenom filtret" },
+    phish:   { label: "Nätfiske",                       hint: "Försök att lura av dig lösenord, betalningsuppgifter m.m." },
+    virus:   { label: "Virus eller skadlig bilaga",     hint: "Mejlet eller en bilaga innehåller skadlig kod" },
+    ads:     { label: "Marknadsföring",                 hint: "Nyhetsbrev eller reklam som inte markerades som marknadsföring" },
+    ham:     { label: "Legitimt mejl (inte skräppost)", hint: "Ett riktigt mejl som felaktigt markerades som skräppost" },
+    not_ads: { label: "Inte marknadsföring",            hint: "Ett mejl som felaktigt markerades som marknadsföring eller massutskick" }
+  },
+
+  /* Övriga texter. {namn} ersätts med aktuellt värde. */
+  strings: {
+    title: "Rapportera mejl till Cisco",
+
+    chipStarting: "Startar …",
+    chipAuto: "Skickas automatiskt",
+    chipCompose: "Öppnar nytt mejl för sändning",
+
+    selectedMail: "Valt mejl",
+    noMailSelected: "Inget mejl valt",
+    selectMailHint: "Välj ett mejl i listan för att rapportera det.",
+    noSubject: "(utan ämne)",
+    fromPrefix: "Från: ",
+
+    missedHelp: "Mejlet ligger i inkorgen men borde ha stoppats.",
+    falsePositiveHelp: "Mejlet markerades felaktigt som skräppost eller marknadsföring.",
+    sentTo: "Skickas till {address}",
+
+    settings: "Inställningar",
+    keepCopy: "Behåll en kopia av rapporten i Skickat",
+    language: "Språk",
+    languageAuto: "Automatiskt (följer Outlook)",
+    logSummary: "Teknisk logg",
+    footer: "Rapporter skickas till Cisco Talos. Följ status på ",
+    footerLink: "Email Status Portal",
+
+    chipOk: "Skickat",
+    chipWarn: "Obs",
+    chipErr: "Fel",
+    chipWait: "Skickar",
+    chipInfo: "Info",
+    chipPressSend: "Tryck Skicka",
+
+    sending: "Skickar rapport som {category} …",
+    composeOpened: "Ett nytt mejl till {address} har öppnats med det rapporterade mejlet bifogat. Tryck Skicka i det nya mejlet för att slutföra rapporteringen.",
+    reported: "Rapporterat som {category}. Skickat till {address}",
+    movedTo: " och flyttat till {folder}",
+    folderJunk: "Skräppost",
+    folderInbox: "Inkorgen",
+    selectFirst: "Välj först ett mejl i listan.",
+    notSentAuto: "Rapporten kunde inte skickas automatiskt: ",
+    notSent: "Rapporten skickades inte: ",
+    retryCompose: "Skicka manuellt i stället",
+    tooLarge: "mejlet är {mb} MB och för stort för automatisk sändning",
+    manualChosen: "manuell sändning vald",
+    reportedMailName: "Rapporterat mejl",
+
+    errConsent: "Det saknas medgivande för att skicka mejl för din räkning. Be er administratör att godkänna tillägget.",
+    errGraphDenied: "Outlook nekades av Microsoft Graph ({status}). Kontrollera att behörigheterna Mail.Send och Mail.ReadWrite är beviljade.",
+    errGetFile: "Mejlet kunde inte hämtas som fil i den här Outlook-versionen.",
+    errNotOutlook: "Det här tillägget måste öppnas från Outlook.",
+    errStart: "Tillägget kunde inte starta: "
+  }
+};

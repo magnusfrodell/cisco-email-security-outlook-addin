@@ -3,13 +3,14 @@
 ## Start with the log
 
 Every pane has a collapsed **Teknisk log** at the bottom. It is the first thing to ask a user
-for. The same lines go to the browser console with the prefix `[CiscoRapport]`
+for. The same lines go to the browser console with the prefix `[CiscoReporter]`
 (Outlook desktop: right-click in the pane → *Inspect*; Outlook on the web: F12).
 
 A healthy graph-mode report looks like this:
 
 ```text
-13:26:06 INFO Start {"addin":"1.0.0","host":"Outlook","platform":"PC","version":"16.0.18…"}
+13:26:06 INFO Start {"addin":"1.1.0","host":"Outlook","platform":"PC","version":"16.0.18…","displayLanguage":"da-DK"}
+13:26:06 INFO Language: da {"source":"Outlook display language da-DK","available":["da","en","sv"]}
 13:26:06 INFO Send mode: graph
 13:26:06 INFO Mail selected {"subject":"…","from":"…","itemId":"AAMkAGI2THVSAAA…"}
 13:26:10 INFO Report started {"category":"phish","mode":"graph"}
@@ -38,9 +39,12 @@ The `Send mode` line lists the reasons whenever graph mode is not active, for ex
 | Large messages always open a new mail                                    | Expected above `MAX_GRAPH_ATTACHMENT_BYTES` (3 MB). Compose mode has no such limit; Cisco accepts up to 10 MB in total.                                                                                                                   |
 | `getAsFileAsync` fails                                                   | Item is a draft, a meeting request, or in a shared/delegate mailbox where the API is not supported. Use *Send manuelt i stedet*.                                                                                                             |
 | New mail opens without the attachment                                    | Item not saved on the server (draft) or the client could not resolve the `itemId`. Report only received messages.                                                                                                                          |
-| Button *Rapportér mail* missing                                          | Deployment not propagated yet (up to 24 h); reading pane turned off (Office.js needs it); user not in the assigned group; item is not a message (appointments never show the button).                                                        |
+| Button *Report to Cisco* missing                                         | Deployment not propagated yet (up to 24 h); reading pane turned off (Office.js needs it); user not in the assigned group; item is not a message (appointments never show the button).                                                        |
 | Pane blank / `Office is not defined` in console                          | `https://appsforoffice.microsoft.com` blocked by proxy or CSP.                                                                                                                                                                             |
-| Pane shows raw keys like `chipAuto`                                      | `STRINGS` missing that key in `config.js` – usually after an incomplete translation.                                                                                                                                                       |
+| Pane shows raw keys like `chipAuto` or a category id like `spam`         | The active locale file is missing that key – usually an incomplete translation. Compare with `src/locales/en.js`.                                                                                                                          |
+| Pane is in the wrong language                                            | Read the `Language:` line in the log: `user setting` means the user picked a language in the pane (choose *Automatic* to reset); `config LANGUAGE` means it is forced in `config.js`; `default` means the Outlook language has no locale file. |
+| Ribbon button in one language, pane in another                           | The ribbon follows the Outlook display language via manifest overrides; the pane follows `LANGUAGE`/the user's choice. Use `LANGUAGE: "auto"` for consistency, or add manifest overrides for the forced language.                          |
+| Language selector missing                                                | `SHOW_LANGUAGE_SELECTOR: false`, or only one locale file is loaded (check the `available` list in the `Language:` log line and the `<script>` tags in `taskpane.html`).                                                                     |
 | Manifest upload rejected in the admin center                             | Run `npm run validate` locally for the exact error. Common causes: placeholder host left in, icon URL not reachable, `Version` not increased on update, string length limits exceeded.                                                     |
 | Old version keeps loading after an update                                | Outlook caches add-in files. Hard-reload the pane (right-click → Reload), or in classic Outlook clear `%LOCALAPPDATA%\Microsoft\Office\16.0\Wef\`.                                                                                          |
 
@@ -52,6 +56,7 @@ Open these directly; each must return 200 with a valid certificate:
 https://<host>/manifest.xml
 https://<host>/taskpane.html
 https://<host>/config.js
+https://<host>/locales/en.js
 https://<host>/lib/msal-browser.min.js
 https://<host>/assets/icon-64.png
 ```
@@ -66,6 +71,7 @@ block a `message/rfc822` attachment to an external domain.
 
 ## Escalating
 
-Collect: the pane log, the Outlook client and version (from the `Start` line), the send mode,
-the category, the time, and – for graph mode – the `AADSTS` or Graph error code. That is enough
+Collect: the pane log, the Outlook client and version (from the `Start` line), the language
+line, the send mode, the category, the time, and – for graph mode – the `AADSTS` or Graph error
+code. That is enough
 to reproduce almost every issue.

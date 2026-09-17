@@ -1,22 +1,29 @@
-# Rapportér mail til Cisco
+# Customizable Outlook Add-in for Cisco Email Security
 
-[![CI](https://github.com/magnusfrodell/outlook-cisco-submission-addin/actions/workflows/ci.yml/badge.svg)](https://github.com/magnusfrodell/outlook-cisco-submission-addin/actions/workflows/ci.yml)
+[![CI](https://github.com/magnusfrodell/cisco-email-security-outlook-addin/actions/workflows/ci.yml/badge.svg)](https://github.com/magnusfrodell/cisco-email-security-outlook-addin/actions/workflows/ci.yml)
 
-An Outlook add-in, in Danish, that lets users report spam, phishing, virus and marketing mail to
-Cisco Talos – and report legitimate mail that was wrongly stopped. Reports go to Cisco's
-documented submission addresses in the same format Cisco's own *Secure Email Submission* add-in
-uses, so they show up in the Talos Email Status Portal like any other submission.
+**Cisco Email Security Reporter** is an Outlook add-in that lets users report spam, phishing,
+virus and marketing mail to Cisco Talos – and report legitimate mail that was wrongly stopped.
+Reports go to Cisco's documented submission addresses in the same format Cisco's own
+*Secure Email Submission* add-in uses, so they show up in the Talos Email Status Portal like any
+other submission.
 
-It exists because Cisco's add-in only has an English task pane and cannot be localized. All
-strings live in one file, so the same code serves Swedish, Norwegian or any other language
-(`examples/config.sv-SE.js`).
+It exists because Cisco's add-in has an English-only task pane that cannot be localized or
+customized. This one ships in **English, Danish and Swedish**, follows the user's Outlook
+language automatically, lets the user switch in the pane, and takes a new language as one file.
 
-<p align="center"><img src="docs/images/taskpane.png" width="340" alt="The task pane in Danish"></p>
+<p align="center">
+  <img src="docs/images/taskpane-en.png" width="300" alt="The task pane in English">
+  <img src="docs/images/taskpane.png" width="300" alt="The task pane in Danish">
+</p>
 
 ## Features
 
 - Six categories: spam, phishing, virus, marketing (→ Junk) and legitimate, not-marketing (→ Inbox);
   any of them can be hidden.
+- **Languages**: `en`, `da`, `sv` in `src/locales/`. `LANGUAGE: "auto"` follows the Outlook
+  display language; `"da"` forces one; a selector in the pane lets each user override it.
+  The ribbon button and store card are localized through manifest overrides.
 - **Automatic mode** – one click: the message is fetched as EML, sent via Microsoft Graph on the
   user's behalf (Nested App Authentication, no secrets) and moved to Junk or Inbox.
 - **Compose mode** – zero infrastructure: a new message to the right Cisco address opens with the
@@ -29,16 +36,26 @@ strings live in one file, so the same code serves Swedish, Norwegian or any othe
 ## Quick start
 
 ```bash
-git clone https://github.com/magnusfrodell/outlook-cisco-submission-addin.git
-cd outlook-cisco-submission-addin
-scripts/set-host.sh addin.firma.dk      # put your HTTPS host into src/manifest.xml
-# upload src/ to https://addin.firma.dk/ , then sideload src/manifest.xml via https://aka.ms/olksideload
+git clone https://github.com/magnusfrodell/cisco-email-security-outlook-addin.git
+cd cisco-email-security-outlook-addin
+scripts/set-host.sh addin.contoso.com   # put your HTTPS host into src/manifest.xml
+# upload src/ to https://addin.contoso.com/ , then sideload src/manifest.xml via https://aka.ms/olksideload
 ```
 
-That gives you compose mode. For automatic mode, register an Entra app with the SPA redirect
-`brk-multihub://addin.firma.dk` and delegated `Mail.Send` + `Mail.ReadWrite`, and put its client
-ID into `src/config.js`. The full procedure is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-(English) and [docs/INSTALLATION.da.md](docs/INSTALLATION.da.md) (Danish, for the customer).
+That gives you compose mode in the user's language. For automatic mode, register an Entra app
+with the SPA redirect `brk-multihub://addin.contoso.com` and delegated `Mail.Send` +
+`Mail.ReadWrite`, and put its client ID into `src/config.js`. The full procedure is in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (English) and
+[docs/INSTALLATION.da.md](docs/INSTALLATION.da.md) (Danish, for the customer).
+
+## Changing the language
+
+| Goal                                        | Do this                                                                 |
+| ------------------------------------------- | ----------------------------------------------------------------------- |
+| Follow each user's Outlook language         | `LANGUAGE: "auto"` in `src/config.js` (default)                         |
+| Force one language for everyone             | `LANGUAGE: "sv"` (or `"da"`, `"en"`)                                    |
+| Let users pick in the pane                  | `SHOW_LANGUAGE_SELECTOR: true` (default; the choice is saved per user)  |
+| Add a language                              | Copy `src/locales/en.js` to `src/locales/nb.js`, translate, add one `<script>` line in `taskpane.html` – see [docs/LOCALIZATION.md](docs/LOCALIZATION.md) |
 
 ## Documentation
 
@@ -47,8 +64,8 @@ ID into `src/config.js`. The full procedure is in [docs/DEPLOYMENT.md](docs/DEPL
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)           | Hosting, Entra app registration, sideloading, central deployment |
 | [docs/INSTALLATION.da.md](docs/INSTALLATION.da.md) | The same, in Danish, written for the customer's IT department   |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md)     | Every key in `config.js`, with recipes                          |
+| [docs/LOCALIZATION.md](docs/LOCALIZATION.md)       | Locale files, language selection, manifest overrides            |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)       | How it works, sequence diagrams, function-by-function reference |
-| [docs/LOCALIZATION.md](docs/LOCALIZATION.md)       | Translating the pane and the manifest                           |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Reading the log, error codes, fixes                             |
 | [docs/index.html](docs/index.html)                 | All of the above as one styled, offline HTML file (`npm run docs` rebuilds it) |
 | [SECURITY.md](SECURITY.md)                         | What data goes where, permissions                               |
@@ -56,9 +73,9 @@ ID into `src/config.js`. The full procedure is in [docs/DEPLOYMENT.md](docs/DEPL
 ## Repository layout
 
 ```text
-src/            the deployable add-in (manifest, task pane, config, MSAL, icons)
+src/            the deployable add-in (manifest, task pane, config, locales, MSAL, icons)
+src/locales/    da.js, en.js, sv.js – one file per language
 docs/           documentation (Markdown + generated docs/index.html)
-examples/       config.sv-SE.js – Swedish strings as a translation template
 scripts/        set-host.sh / set-host.ps1, build-docs.py
 tests/          Office.js stub and headless smoke test
 .github/        CI (validate + test) and optional GitHub Pages deployment

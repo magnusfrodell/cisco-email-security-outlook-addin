@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!--
-  Rapportér mail til Cisco – Outlook-tilføjelsesprogram (dansk).
-  Erstat addin.example.com med det hostnavn, hvor filerne er publiceret (HTTPS):
-    scripts/set-host.sh addin.firma.dk
+  Cisco Email Security Reporter – Outlook add-in manifest.
+  Strings: en-US default with da-DK and sv-SE overrides (Outlook picks the user's language).
+  Replace addin.example.com with the HTTPS host where src/ is published:
+    scripts/set-host.sh addin.contoso.com
 -->
 <OfficeApp
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
@@ -12,11 +13,14 @@
   xsi:type="MailApp">
 
   <Id>8cec0077-122f-4b5b-a7ec-b779f92668c7</Id>
-  <Version>1.0.0.0</Version>
-  <ProviderName>IT-afdelingen</ProviderName>
-  <DefaultLocale>da-DK</DefaultLocale>
-  <DisplayName DefaultValue="Rapportér mail til Cisco"/>
-  <Description DefaultValue="Rapportér spam, phishing, virus og marketing til Cisco – eller fortæl Cisco, at en mail fejlagtigt blev stoppet."/>
+  <Version>1.1.0.0</Version>
+  <ProviderName>IT department</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Cisco Email Security Reporter"/>
+  <Description DefaultValue="Report spam, phishing, virus and marketing mail to Cisco, or tell Cisco when a legitimate mail was wrongly stopped.">
+    <Override Locale="da-DK" Value="Rapportér spam, phishing, virus og marketing til Cisco – eller fortæl Cisco, at en mail fejlagtigt blev stoppet."/>
+    <Override Locale="sv-SE" Value="Rapportera skräppost, nätfiske, virus och marknadsföring till Cisco – eller berätta för Cisco att ett legitimt mejl felaktigt stoppades."/>
+  </Description>
   <IconUrl DefaultValue="https://addin.example.com/assets/icon-64.png"/>
   <HighResolutionIconUrl DefaultValue="https://addin.example.com/assets/icon-128.png"/>
   <SupportUrl DefaultValue="https://addin.example.com/support.html"/>
@@ -103,11 +107,20 @@
           <bt:Url id="Taskpane.Url" DefaultValue="https://addin.example.com/taskpane.html"/>
         </bt:Urls>
         <bt:ShortStrings>
-          <bt:String id="GroupLabel" DefaultValue="Mailsikkerhed"/>
-          <bt:String id="TaskpaneButton.Label" DefaultValue="Rapportér mail"/>
+          <bt:String id="GroupLabel" DefaultValue="Email security">
+            <bt:Override Locale="da-DK" Value="Mailsikkerhed"/>
+            <bt:Override Locale="sv-SE" Value="E-postsäkerhet"/>
+          </bt:String>
+          <bt:String id="TaskpaneButton.Label" DefaultValue="Report to Cisco">
+            <bt:Override Locale="da-DK" Value="Rapportér til Cisco"/>
+            <bt:Override Locale="sv-SE" Value="Rapportera till Cisco"/>
+          </bt:String>
         </bt:ShortStrings>
         <bt:LongStrings>
-          <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Rapportér spam, phishing, virus eller marketing til Cisco – eller fortæl Cisco, at en mail fejlagtigt blev stoppet."/>
+          <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Report spam, phishing, virus or marketing mail to Cisco, or tell Cisco when a legitimate mail was wrongly stopped.">
+            <bt:Override Locale="da-DK" Value="Rapportér spam, phishing, virus eller marketing til Cisco – eller fortæl Cisco, at en mail fejlagtigt blev stoppet."/>
+            <bt:Override Locale="sv-SE" Value="Rapportera skräppost, nätfiske, virus eller marknadsföring till Cisco – eller berätta för Cisco att ett legitimt mejl felaktigt stoppades."/>
+          </bt:String>
         </bt:LongStrings>
       </Resources>
 

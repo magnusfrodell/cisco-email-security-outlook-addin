@@ -1,8 +1,17 @@
 # Configuration reference
 
 All configuration is in `src/config.js`, a plain JavaScript file that assigns
-`window.RAPPORT_CONFIG`. It is read when the pane opens; changes on the web host take effect
-the next time a user opens the pane, with no manifest update.
+`window.REPORTER_CONFIG`. It is read when the pane opens; changes on the web host take effect
+the next time a user opens the pane, with no manifest update. User-facing texts are not in this
+file – they live in `src/locales/<lang>.js` (see `docs/LOCALIZATION.md`).
+
+## Language
+
+| Key                       | Type    | Default  | Description                                                                                                                                   |
+| ------------------------- | ------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LANGUAGE`                | string  | `"auto"` | `"auto"` follows the user's Outlook display language. Any locale code with a file in `src/locales/` (`"da"`, `"en"`, `"sv"`) forces that language. |
+| `DEFAULT_LANGUAGE`        | string  | `"en"`   | Used when `auto` cannot match the Outlook language to a locale file.                                                                          |
+| `SHOW_LANGUAGE_SELECTOR`  | boolean | `true`   | Shows the language selector in the pane. A user's choice is stored in their mailbox and overrides `LANGUAGE` for that user.                    |
 
 ## Sending
 
@@ -13,37 +22,28 @@ the next time a user opens the pane, with no manifest update.
 | `MOVE_AFTER_REPORT`          | boolean   | `true`                                             | After a successful graph-mode report, move the message to the category's `moveTo` folder. Requires the delegated `Mail.ReadWrite` permission.                 |
 | `SAVE_TO_SENT_DEFAULT`       | boolean   | `false`                                            | Default for the per-user "keep a copy in Sent Items" checkbox (graph mode). The user's choice is stored in `roamingSettings` and overrides this.              |
 | `CC_ADDRESSES`               | string[]  | `[]`                                               | Extra recipients on every report, e.g. an internal SOC mailbox. Applied in both modes.                                                                       |
-| `SUBJECT`                    | string    | `Cisco Secure Email submission – {category}`       | Subject of the report mail. `{category}` is replaced with the category label.                                                                                |
-| `BODY_TEXT`                  | string    | Danish sentence                                    | Plain-text body of the report mail (rendered as a paragraph in compose mode).                                                                                |
+| `SUBJECT`                    | string    | `Cisco Secure Email submission – {category}`       | Subject of the report mail. `{category}` is replaced with the category label in the active language.                                                         |
 | `MAX_GRAPH_ATTACHMENT_BYTES` | number    | `3145728` (3 MB)                                   | Above this EML size graph mode hands over to compose mode. Microsoft Graph rejects larger inline attachments in `sendMail`; Cisco accepts at most 10 MB.      |
+
+The body text of the report mail is per language (`bodyText` in each locale file).
 
 ## Categories
 
-`CATEGORIES` is an array; order is display order within each group.
+`CATEGORIES` is an array; order is display order within each group. Labels and hints come from
+the locale files, keyed by `id`.
 
 ```javascript
 {
-  id: "phish",                 // unique key; used in logs and data-id attributes
-  group: "missed",             // key into GROUPS → which panel the button is in
+  id: "phish",                 // key into <locale>.categories; also used in logs
+  group: "missed",             // "missed" | "false_positive" → which panel the button is in
   enabled: true,               // false hides the button without deleting the entry
-  label: "Phishing",           // button text; also substituted into SUBJECT
-  hint: "Forsøg på at …",      // one line under the label
   address: "phish@access.ironport.com",  // Cisco address – do not change
   moveTo: "junkemail"          // "junkemail" | "inbox" | null (graph mode only)
 }
 ```
 
-`GROUPS` maps group keys to the panel headings:
-
-```javascript
-GROUPS: {
-  missed: "Fejlagtigt leveret til indbakken",
-  false_positive: "Fejlagtigt stoppet eller markeret"
-}
-```
-
-The pane has two group containers (`missed`, `false_positive`). A category with an unknown
-group lands in `missed`.
+The pane has two group containers (`missed`, `false_positive`) whose headings come from
+`<locale>.groups`. A category with an unknown group lands in `missed`.
 
 ### Cisco addresses
 
@@ -62,12 +62,21 @@ them; Talos will not see reports sent anywhere else.
 Cisco's own add-in uses three internal addresses (`addin_spam@`, `addin_ham@`, `addin_mktg@`).
 Those are reserved for Cisco's add-in; this project uses the public ones.
 
-## Strings
-
-`LANG` (BCP-47 language tag, used for `<html lang>`) and `STRINGS` (every text in the pane).
-See `docs/LOCALIZATION.md` for the full key list and the placeholders each string supports.
-
 ## Recipes
+
+**Danish for everyone, no selector:**
+
+```javascript
+LANGUAGE: "da",
+SHOW_LANGUAGE_SELECTOR: false,
+```
+
+**Follow Outlook, fall back to Swedish:**
+
+```javascript
+LANGUAGE: "auto",
+DEFAULT_LANGUAGE: "sv",
+```
 
 **Only spam, phishing and "not spam" (three buttons like Cisco's add-in):** set `enabled: false`
 on `virus`, `ads` and `not_ads`.
@@ -75,7 +84,7 @@ on `virus`, `ads` and `not_ads`.
 **Copy every report to the SOC:**
 
 ```javascript
-CC_ADDRESSES: ["soc@firma.dk"],
+CC_ADDRESSES: ["soc@contoso.com"],
 ```
 
 **Automatic mode, single tenant:**
@@ -94,3 +103,7 @@ MOVE_AFTER_REPORT: false,
 
 **Keep a copy of reports by default:** `SAVE_TO_SENT_DEFAULT: true` – users can still turn it
 off in the pane.
+
+**Add a category** (e.g. a second phishing address for an internal team): add an entry to
+`CATEGORIES` with a new `id`, then add `categories.<id>` with `label` and `hint` to every locale
+file.

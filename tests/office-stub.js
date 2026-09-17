@@ -1,6 +1,7 @@
 /*
  * Minimal Office.js stub used by tests/smoke_test.py so the task pane can be
  * rendered and exercised in a plain browser, outside Outlook.
+ * displayLanguage is da-DK so LANGUAGE: "auto" resolves to Danish.
  * It is never shipped – src/ must not reference this file.
  */
 (function () {
@@ -22,6 +23,7 @@
     MailboxEnums: { ItemType: { Message: "message" }, RestVersion: { v2_0: "v2.0" } },
     EventType: { ItemChanged: "itemChanged" },
     context: {
+      displayLanguage: "da-DK",   // drives LANGUAGE: "auto" in the tests
       requirements: {
         isSetSupported: function (name, version) {
           return !!supported[name] && versionAtLeast(supported[name], version || "1.1");

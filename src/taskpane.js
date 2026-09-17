@@ -1,63 +1,43 @@
 /* global Office, msal */
 /*
- * Rapportér mail til Cisco – task pane-logik.
+ * Cisco Email Security Reporter – task pane logic.
  *
- * To afsendelsesmåder:
- *   graph   : Mailen hentes som EML (getAsFileAsync) og sendes via Microsoft Graph
- *             /me/sendMail med Nested App Authentication (NAA). Kræver CLIENT_ID i
- *             config.js, Mailbox 1.14 og NestedAppAuth 1.1 i Outlook-klienten.
- *   compose : Der åbnes en ny mail til Ciscos adresse med den valgte besked
- *             vedhæftet som element ("videresend som vedhæftning"). Brugeren
- *             trykker selv Send. Virker uden appregistrering (Mailbox 1.6+).
+ * Two send modes:
+ *   graph   : The mail is fetched as EML (getAsFileAsync) and sent through Microsoft Graph
+ *             /me/sendMail with Nested App Authentication (NAA). Needs CLIENT_ID in
+ *             config.js, Mailbox 1.14 and NestedAppAuth 1.1 in the Outlook client.
+ *   compose : A new message to Cisco's address is opened with the selected mail attached
+ *             as an item ("forward as attachment"). The user presses Send. Works without
+ *             an app registration (Mailbox 1.6+).
  *
- * graph falder automatisk tilbage til compose hvis forudsætningerne mangler,
- * og tilbyder compose som "Send manuelt i stedet" hvis afsendelsen fejler.
+ * graph falls back to compose automatically when its preconditions are missing, and
+ * offers compose as "send manually instead" when a send fails.
  *
- * Alle tekster hentes fra RAPPORT_CONFIG.STRINGS (config.js). Denne fil
- * indeholder ingen sprogafhængige tekster.
+ * Languages: every user-facing text comes from window.REPORTER_LOCALES[<lang>]
+ * (src/locales/*.js). The active language is resolved in resolveLanguage(). This file
+ * contains no language-dependent text; log messages are English by design.
  */
 (function () {
   "use strict";
 
-  var VERSION = "1.0.0";
-  var CFG = window.RAPPORT_CONFIG || {};
-  var S = CFG.STRINGS || {};
-  var LOG_PREFIX = "[CiscoRapport]";
+  var VERSION = "1.1.0";
+  var CFG = window.REPORTER_CONFIG || {};
+  var LOCALES = window.REPORTER_LOCALES || {};
+  var LOG_PREFIX = "[CiscoReporter]";
   var GRAPH = "https://graph.microsoft.com/v1.0";
+  var AUTO = "auto";
+
+  var L = {};   // active locale object
+  var S = {};   // active locale strings
 
   var state = {
     mode: "compose",
+    modeDetected: false,
+    language: null,
     msalApp: null,
     busy: false,
     item: null
   };
-
-  /* ------------------------------------------------------------------ */
-  /* Tekster                                                            */
-  /* ------------------------------------------------------------------ */
-
-  /** Hent tekst fra STRINGS og erstat {navn}-pladsholdere. Ukendt nøgle -> nøglen selv. */
-  function t(key, params) {
-    var text = Object.prototype.hasOwnProperty.call(S, key) ? String(S[key]) : key;
-    if (params) {
-      Object.keys(params).forEach(function (k) {
-        text = text.split("{" + k + "}").join(String(params[k]));
-      });
-    }
-    return text;
-  }
-
-  function applyStrings() {
-    var nodes = document.querySelectorAll("[data-str]");
-    for (var i = 0; i < nodes.length; i++) {
-      var key = nodes[i].getAttribute("data-str");
-      if (Object.prototype.hasOwnProperty.call(S, key)) {
-        nodes[i].textContent = S[key];
-      }
-    }
-    if (S.title) { document.title = S.title; }
-    if (CFG.LANG) { document.documentElement.setAttribute("lang", CFG.LANG); }
-  }
 
   /* ------------------------------------------------------------------ */
   /* Logging                                                            */
@@ -73,7 +53,7 @@
       }
     }
     var fn = console[level] || console.log;
-    try { fn.call(console, LOG_PREFIX, line); } catch (e) { /* ignorer */ }
+    try { fn.call(console, LOG_PREFIX, line); } catch (e) { /* ignore */ }
     var el = document.getElementById("log");
     if (el) {
       el.textContent += line + "\n";
@@ -92,7 +72,154 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Hjælpere                                                           */
+  /* Languages                                                          */
+  /* ------------------------------------------------------------------ */
+
+  function languages() { return Object.keys(LOCALES); }
+
+  /** Map "sv-SE", "SV", "da-dk" … to a loaded locale key, or null. */
+  function matchLanguage(tag) {
+    var t = String(tag || "").toLowerCase();
+    if (!t) { return null; }
+    var keys = languages(), i;
+    for (i = 0; i < keys.length; i++) { if (keys[i].toLowerCase() === t) { return keys[i]; } }
+    var base = t.split(/[-_]/)[0];
+    for (i = 0; i < keys.length; i++) { if (keys[i].toLowerCase() === base) { return keys[i]; } }
+    return null;
+  }
+
+  function savedLanguage() {
+    try {
+      var v = Office.context.roamingSettings.get("language");
+      if (typeof v === "string" && v) { return v; }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function displayLanguage() {
+    try { return Office.context.displayLanguage || null; } catch (e) { return null; }
+  }
+
+  /**
+   * Precedence: the user's own choice (if the selector is enabled) → LANGUAGE in config
+   * (unless "auto") → the Outlook display language → DEFAULT_LANGUAGE → first locale loaded.
+   */
+  function resolveLanguage() {
+    var keys = languages();
+    if (!keys.length) { return null; }
+    var chosen = null, source = "";
+
+    var saved = CFG.SHOW_LANGUAGE_SELECTOR !== false ? savedLanguage() : null;
+    if (saved && saved !== AUTO && matchLanguage(saved)) {
+      chosen = matchLanguage(saved); source = "user setting";
+    } else if (CFG.LANGUAGE && CFG.LANGUAGE !== AUTO && matchLanguage(CFG.LANGUAGE)) {
+      chosen = matchLanguage(CFG.LANGUAGE); source = "config LANGUAGE";
+    } else {
+      var disp = displayLanguage();
+      if (disp && matchLanguage(disp)) {
+        chosen = matchLanguage(disp); source = "Outlook display language " + disp;
+      }
+    }
+    if (!chosen) {
+      chosen = matchLanguage(CFG.DEFAULT_LANGUAGE) || keys[0];
+      source = "default";
+    }
+    log("info", "Language: " + chosen, { source: source, available: keys });
+    return chosen;
+  }
+
+  /** Text from the active locale with {name} placeholders filled in. Unknown key → the key. */
+  function t(key, params) {
+    var text = Object.prototype.hasOwnProperty.call(S, key) ? String(S[key]) : key;
+    if (params) {
+      Object.keys(params).forEach(function (k) {
+        text = text.split("{" + k + "}").join(String(params[k]));
+      });
+    }
+    return text;
+  }
+
+  function labelOf(cat) {
+    var c = (L.categories || {})[cat.id];
+    return (c && c.label) || cat.id;
+  }
+
+  function hintOf(cat) {
+    var c = (L.categories || {})[cat.id];
+    return (c && c.hint) || "";
+  }
+
+  function applyStrings() {
+    var nodes = document.querySelectorAll("[data-str]");
+    for (var i = 0; i < nodes.length; i++) {
+      var key = nodes[i].getAttribute("data-str");
+      if (Object.prototype.hasOwnProperty.call(S, key)) {
+        nodes[i].textContent = S[key];
+      }
+    }
+    if (S.title) { document.title = S.title; }
+  }
+
+  /** Switch the whole pane to a locale: strings, group titles, buttons, chip, selector. */
+  function applyLocale(code) {
+    L = LOCALES[code] || {};
+    S = L.strings || {};
+    state.language = code;
+    if (code) { document.documentElement.setAttribute("lang", code); }
+    applyStrings();
+    renderCategories();
+    updateModeChip();
+    renderLanguageSelector();
+    clearStatus();
+  }
+
+  function renderLanguageSelector() {
+    var row = document.getElementById("language-row");
+    var sel = document.getElementById("lang-select");
+    if (!row || !sel) { return; }
+    var enabled = CFG.SHOW_LANGUAGE_SELECTOR !== false && languages().length > 1;
+    row.hidden = !enabled;
+    if (!enabled) { return; }
+
+    var saved = savedLanguage();
+    var current = (saved && saved !== AUTO && matchLanguage(saved)) ? matchLanguage(saved) : AUTO;
+    sel.innerHTML = "";
+    var optAuto = document.createElement("option");
+    optAuto.value = AUTO;
+    optAuto.textContent = t("languageAuto");
+    sel.appendChild(optAuto);
+    languages().forEach(function (code) {
+      var o = document.createElement("option");
+      o.value = code;
+      o.textContent = (LOCALES[code] && LOCALES[code].name) || code;
+      sel.appendChild(o);
+    });
+    sel.value = current;
+  }
+
+  function initLanguageSelector() {
+    var sel = document.getElementById("lang-select");
+    if (!sel) { return; }
+    sel.addEventListener("change", function () {
+      var value = sel.value;
+      try {
+        Office.context.roamingSettings.set("language", value);
+        Office.context.roamingSettings.saveAsync(function (r) {
+          if (r.status !== Office.AsyncResultStatus.Succeeded) {
+            log("warn", "Could not save language setting", r.error && r.error.message);
+          }
+        });
+      } catch (e) {
+        log("warn", "roamingSettings unavailable", errText(e));
+      }
+      log("info", "Language changed by user", { value: value });
+      applyLocale(resolveLanguage());
+      refreshItem();
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Helpers                                                            */
   /* ------------------------------------------------------------------ */
 
   function $(id) { return document.getElementById(id); }
@@ -112,7 +239,11 @@
   }
 
   function subjectFor(cat) {
-    return String(CFG.SUBJECT || "Cisco Secure Email submission").split("{category}").join(cat.label);
+    return String(CFG.SUBJECT || "Cisco Secure Email submission").split("{category}").join(labelOf(cat));
+  }
+
+  function bodyText() {
+    return String(L.bodyText || "");
   }
 
   function folderName(id) {
@@ -137,6 +268,16 @@
     var chip = $("mode-chip");
     chip.textContent = text;
     chip.className = "chip " + cls;
+  }
+
+  function updateModeChip() {
+    if (!state.modeDetected) {
+      setModeChip(t("chipStarting"), "chip-neutral");
+    } else if (state.mode === "graph") {
+      setModeChip(t("chipAuto"), "chip-ok");
+    } else {
+      setModeChip(t("chipCompose"), "chip-neutral");
+    }
   }
 
   function setStatus(kind, text, opts) {
@@ -167,7 +308,7 @@
     try {
       var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       box.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    } catch (e) { /* ignorer */ }
+    } catch (e) { /* ignore */ }
   }
 
   function clearStatus() {
@@ -181,10 +322,12 @@
   }
 
   function renderCategories() {
-    var groups = CFG.GROUPS || {};
-    Object.keys(groups).forEach(function (g) {
-      var el = $("group-" + g + "-title");
-      if (el) { el.textContent = groups[g]; }
+    var groups = L.groups || {};
+    ["missed", "false_positive"].forEach(function (g) {
+      var title = $("group-" + g + "-title");
+      if (title) { title.textContent = groups[g] || g; }
+      var container = $("group-" + g);
+      if (container) { container.innerHTML = ""; }
     });
 
     enabledCategories().forEach(function (cat) {
@@ -194,12 +337,13 @@
       b.className = "btn-cat";
       b.setAttribute("data-id", cat.id);
       b.setAttribute("title", t("sentTo", { address: cat.address }));
+      b.disabled = state.busy || !state.item;
       var l = document.createElement("span");
       l.className = "btn-cat-label";
-      l.textContent = cat.label;
+      l.textContent = labelOf(cat);
       var h = document.createElement("span");
       h.className = "btn-cat-hint";
-      h.textContent = cat.hint || "";
+      h.textContent = hintOf(cat);
       b.appendChild(l);
       b.appendChild(h);
       b.addEventListener("click", function () { report(cat); });
@@ -214,6 +358,7 @@
 
     var isMessage = !!item && item.itemType === Office.MailboxEnums.ItemType.Message;
     if (!isMessage) {
+      state.item = null;
       $("mail-subject").textContent = t("noMailSelected");
       $("mail-from").textContent = t("selectMailHint");
       setButtonsEnabled(false);
@@ -232,14 +377,14 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Indstillinger (roamingSettings)                                    */
+  /* Settings (roamingSettings)                                         */
   /* ------------------------------------------------------------------ */
 
   function keepCopy() {
     try {
       var v = Office.context.roamingSettings.get("keepCopy");
       if (v === true || v === false) { return v; }
-    } catch (e) { /* ignorer */ }
+    } catch (e) { /* ignore */ }
     return !!CFG.SAVE_TO_SENT_DEFAULT;
   }
 
@@ -260,10 +405,19 @@
         log("warn", "roamingSettings unavailable", errText(e));
       }
     });
+    initLanguageSelector();
+  }
+
+  /** The settings panel is shown if any of its rows is; the keep-copy row only in graph mode. */
+  function updateSettingsVisibility() {
+    var keepRow = $("keep-copy-row");
+    var langRow = $("language-row");
+    keepRow.hidden = (state.mode !== "graph");
+    $("settings").hidden = keepRow.hidden && langRow.hidden;
   }
 
   /* ------------------------------------------------------------------ */
-  /* Afsendelse: compose (ny mail med vedhæftning)                      */
+  /* Send: compose (new message with the item attached)                 */
   /* ------------------------------------------------------------------ */
 
   function reportViaCompose(cat, reason) {
@@ -275,7 +429,7 @@
       toRecipients: [cat.address],
       ccRecipients: CFG.CC_ADDRESSES || [],
       subject: subjectFor(cat),
-      htmlBody: "<p>" + escapeHtml(CFG.BODY_TEXT || "") + "</p>",
+      htmlBody: "<p>" + escapeHtml(bodyText()) + "</p>",
       attachments: [{
         type: "item",
         name: (item.subject || t("reportedMailName")).slice(0, 120),
@@ -308,7 +462,7 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Afsendelse: Microsoft Graph via NAA                                */
+  /* Send: Microsoft Graph via NAA                                      */
   /* ------------------------------------------------------------------ */
 
   function getEmlBase64() {
@@ -358,7 +512,7 @@
     });
     if (!res.ok) {
       var text = "";
-      try { text = await res.text(); } catch (e) { /* ignorer */ }
+      try { text = await res.text(); } catch (e) { /* ignore */ }
       var err = new Error("Graph " + path + " returned " + res.status + " " + text.slice(0, 300));
       err.status = res.status;
       throw err;
@@ -395,7 +549,7 @@
 
     var message = {
       subject: subjectFor(cat),
-      body: { contentType: "Text", content: CFG.BODY_TEXT || "" },
+      body: { contentType: "Text", content: bodyText() },
       toRecipients: recipients([cat.address]),
       internetMessageHeaders: [{ name: "X-MS-AddIn-Base64Encode", value: "true" }],
       attachments: [{
@@ -427,13 +581,13 @@
     }
 
     setStatus("ok",
-      t("reported", { category: cat.label.toLowerCase(), address: cat.address }) +
+      t("reported", { category: labelOf(cat).toLowerCase(), address: cat.address }) +
       (moved ? t("movedTo", { folder: folderName(cat.moveTo) }) : "") + ".");
     return { fallback: false };
   }
 
   /* ------------------------------------------------------------------ */
-  /* Rapportering                                                       */
+  /* Reporting                                                          */
   /* ------------------------------------------------------------------ */
 
   function friendlyError(e) {
@@ -473,8 +627,8 @@
     }
     state.busy = true;
     setButtonsEnabled(false);
-    setStatus("wait", t("sending", { category: cat.label.toLowerCase() }));
-    log("info", "Report started", { category: cat.id, mode: state.mode });
+    setStatus("wait", t("sending", { category: labelOf(cat).toLowerCase() }));
+    log("info", "Report started", { category: cat.id, mode: state.mode, language: state.language });
 
     try {
       if (state.mode === "graph") {
@@ -502,7 +656,7 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Opstart                                                            */
+  /* Startup                                                            */
   /* ------------------------------------------------------------------ */
 
   function detectMode() {
@@ -517,15 +671,11 @@
       reasons.push("Mailbox 1.6 (displayNewMessageForm) not supported by this client");
     }
 
-    if (reasons.length === 0) {
-      state.mode = "graph";
-      setModeChip(t("chipAuto"), "chip-ok");
-    } else {
-      state.mode = "compose";
-      setModeChip(t("chipCompose"), "chip-neutral");
-    }
+    state.mode = reasons.length === 0 ? "graph" : "compose";
+    state.modeDetected = true;
+    updateModeChip();
     log("info", "Send mode: " + state.mode, reasons.length ? reasons : undefined);
-    $("settings").hidden = (state.mode !== "graph");
+    updateSettingsVisibility();
   }
 
   function init() {
@@ -534,11 +684,16 @@
       diag.host = Office.context.diagnostics.host;
       diag.platform = Office.context.diagnostics.platform;
       diag.version = Office.context.diagnostics.version;
-    } catch (e) { /* ignorer */ }
+      diag.displayLanguage = displayLanguage();
+    } catch (e) { /* ignore */ }
     log("info", "Start", diag);
 
-    applyStrings();
-    renderCategories();
+    if (!languages().length) {
+      setStatus("err", "No locale files loaded (src/locales/*.js)");
+      return;
+    }
+
+    applyLocale(resolveLanguage());
     initSettings();
     detectMode();
     refreshItem();
@@ -556,7 +711,7 @@
 
   Office.onReady(function (info) {
     if (info.host !== Office.HostType.Outlook) {
-      applyStrings();
+      if (languages().length) { applyLocale(resolveLanguage()); }
       setStatus("err", t("errNotOutlook"));
       return;
     }

@@ -2,9 +2,10 @@
 """
 Smoke test for the task pane, run in headless Chromium with a stubbed Office.js.
 
-It verifies that the pane renders from config.js, that all enabled categories
-become buttons, that the compose-mode flow opens a new message addressed to the
-right Cisco address with the item attached, and that no JavaScript errors occur.
+It verifies that the pane renders from config.js and the locale files, that all enabled
+categories become buttons, that the compose-mode flow opens a new message addressed to the
+right Cisco address with the item attached, that the language selector switches every text,
+and that no JavaScript errors occur.
 
 Usage:
     pip install playwright && playwright install chromium
@@ -12,7 +13,6 @@ Usage:
 """
 import argparse
 import asyncio
-import json
 import pathlib
 import re
 import shutil
@@ -37,12 +37,13 @@ def build_preview(tmp: pathlib.Path) -> pathlib.Path:
 
 
 def read_config() -> dict:
-    """Extract a few facts from config.js without a JS engine."""
+    """Extract a few facts from config.js and the locale files without a JS engine."""
     js = (SRC / "config.js").read_text(encoding="utf-8")
-    categories = re.findall(r'id:\s*"([a-z_]+)",\s*group:\s*"([a-z_]+)",\s*enabled:\s*(true|false)', js)
-    addresses = dict(re.findall(r'id:\s*"([a-z_]+)"[\s\S]*?address:\s*"([^"]+)"', js))
-    title = re.search(r'title:\s*"([^"]+)"', js).group(1)
-    return {"categories": categories, "addresses": addresses, "title": title}
+    categories = re.findall(r'\{\s*id:\s*"([a-z_]+)",\s*group:\s*"([a-z_]+)",\s*enabled:\s*(true|false),\s*address:\s*"([^"]+)"', js)
+    titles = {}
+    for f in sorted((SRC / "locales").glob("*.js")):
+        titles[f.stem] = re.search(r'\btitle:\s*"([^"]+)"', f.read_text(encoding="utf-8")).group(1)
+    return {"categories": categories, "addresses": {c[0]: c[3] for c in categories}, "titles": titles}
 
 
 async def run(screenshots: pathlib.Path | None) -> int:
@@ -69,18 +70,48 @@ async def run(screenshots: pathlib.Path | None) -> int:
             await page.goto(page_path.as_uri())
             await page.wait_for_timeout(500)
 
-            check(await page.text_content(".head-title") == cfg["title"], "title comes from config.js STRINGS")
+            # --- rendering from config + locales -------------------------------------
+            check(len(cfg["titles"]) >= 3 and {"da", "en", "sv"} <= set(cfg["titles"]), "locale files da, en, sv present")
+            check(await page.text_content(".head-title") == cfg["titles"]["da"], "LANGUAGE auto follows Outlook display language (da-DK → da)")
+            check(await page.get_attribute("html", "lang") == "da", "<html lang> set from the active locale")
             buttons = await page.query_selector_all(".btn-cat")
             check(len(buttons) == len(enabled), f"{len(enabled)} enabled categories rendered as buttons ({len(buttons)} found)")
             chip = (await page.text_content("#mode-chip") or "").strip()
             check(chip != "" and "Starter" not in chip, f"mode chip set ({chip!r})")
-            check(await page.is_hidden("#settings"), "settings panel hidden in compose mode")
+            check(await page.is_visible("#settings"), "settings panel visible (language selector)")
+            check(await page.is_hidden("#keep-copy-row"), "keep-copy row hidden in compose mode")
             check((await page.text_content("#mail-subject") or "").startswith("Din konto"), "selected mail subject shown")
+            options = await page.eval_on_selector_all("#lang-select option", "els => els.map(e => e.value)")
+            check(options == ["auto", "da", "en", "sv"], f"language selector lists auto + locales ({options})")
+            check(await page.input_value("#lang-select") == "auto", "selector starts on automatic")
 
             if screenshots:
                 screenshots.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=str(screenshots / "taskpane.png"), full_page=True)
 
+            # --- language switching ----------------------------------------------------
+            await page.select_option("#lang-select", "sv")
+            await page.wait_for_timeout(300)
+            check(await page.text_content(".head-title") == cfg["titles"]["sv"], "switching to Swedish changes the title")
+            check(await page.get_attribute("html", "lang") == "sv", "<html lang> follows the switch")
+            first_label = await page.text_content(".btn-cat .btn-cat-label")
+            check(first_label == "Skräppost", f"category buttons re-rendered in Swedish ({first_label!r})")
+            saved = await page.evaluate("Office.context.roamingSettings.get('language')")
+            check(saved == "sv", "language choice saved in roamingSettings")
+            if screenshots:
+                await page.screenshot(path=str(screenshots / "taskpane-sv.png"), full_page=True)
+
+            await page.select_option("#lang-select", "en")
+            await page.wait_for_timeout(300)
+            check(await page.text_content(".head-title") == cfg["titles"]["en"], "switching to English changes the title")
+            if screenshots:
+                await page.screenshot(path=str(screenshots / "taskpane-en.png"), full_page=True)
+
+            await page.select_option("#lang-select", "auto")
+            await page.wait_for_timeout(300)
+            check(await page.text_content(".head-title") == cfg["titles"]["da"], "automatic returns to the Outlook language")
+
+            # --- compose flow ----------------------------------------------------------
             await page.click('button[data-id="phish"]')
             await page.wait_for_timeout(400)
             calls = await page.evaluate("window.__stubCalls")
@@ -91,7 +122,8 @@ async def run(screenshots: pathlib.Path | None) -> int:
                 check(f["toRecipients"] == [cfg["addresses"]["phish"]], f"addressed to {cfg['addresses']['phish']}")
                 att = f.get("attachments") or []
                 check(len(att) == 1 and att[0]["type"] == "item" and att[0]["itemId"], "reported mail attached as item")
-                check(bool(f.get("subject")), "subject set")
+                check("Phishing" in (f.get("subject") or ""), "subject carries the localized category label")
+                check("Rapport sendt" in (f.get("htmlBody") or ""), "body text comes from the active locale")
             check(await page.get_attribute("#status", "data-kind") == "ok", "status box shows ok state")
             status_text = await page.text_content("#status-text") or ""
             check(cfg["addresses"]["phish"] in status_text, "status text names the Cisco address")
@@ -100,7 +132,7 @@ async def run(screenshots: pathlib.Path | None) -> int:
             if screenshots:
                 await page.screenshot(path=str(screenshots / "taskpane-status.png"), full_page=False)
 
-            # simulate selection change with no item
+            # --- selection change with no item -------------------------------------------
             await page.evaluate("Office.context.mailbox.item = null; window.__stubItemChanged && window.__stubItemChanged({})")
             await page.wait_for_timeout(200)
             check(not await page.is_enabled('button[data-id="spam"]'), "buttons disabled when no mail is selected")
@@ -114,7 +146,7 @@ async def run(screenshots: pathlib.Path | None) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--screenshots", type=pathlib.Path, help="directory to write taskpane.png and taskpane-status.png")
+    ap.add_argument("--screenshots", type=pathlib.Path, help="directory to write the documentation screenshots")
     args = ap.parse_args()
     sys.exit(asyncio.run(run(args.screenshots)))
 

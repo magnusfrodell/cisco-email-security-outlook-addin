@@ -5,9 +5,9 @@
 - No build step. `src/` is deployed as-is, so keep the JavaScript free of syntax that older
   Office webviews cannot parse (no optional chaining `?.`, no nullish coalescing `??`). `async`/`await`
   is fine.
-- No user-facing text in `taskpane.js`. Every string the user sees comes from
-  `RAPPORT_CONFIG.STRINGS` in `src/config.js` (see `docs/LOCALIZATION.md`). Log messages are in
-  English and stay in the code.
+- No user-facing text in `taskpane.js` or `config.js`. Every string the user sees comes from a
+  locale file in `src/locales/` (see `docs/LOCALIZATION.md`). A new key must be added to **all**
+  locale files. Log messages are in English and stay in the code.
 - Never change the Cisco submission addresses in `CATEGORIES`. They are Cisco's documented
   addresses; changing them silently breaks reporting.
 - Keep the existing fallback chain intact: graph → compose on preconditions, size or failure.

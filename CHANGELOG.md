@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 match: `package.json`, `VERSION` in `src/taskpane.js`, and `<Version>` in `src/manifest.xml`
 (four-part form, e.g. `1.0.0.0`).
 
+## [1.1.0] – 2026-09-17
+
+### Changed
+- Renamed to **Cisco Email Security Reporter** (repository
+  `cisco-email-security-outlook-addin`). Manifest `DisplayName`, ribbon group
+  (*Email security*) and button (*Report to Cisco*) renamed; config global is now
+  `window.REPORTER_CONFIG`, log prefix `[CiscoReporter]`. The manifest `Id` is unchanged, so
+  the update installs over 1.0.0.
+- All user-facing text moved out of `config.js` into one locale file per language in
+  `src/locales/` (`window.REPORTER_LOCALES.<code>`), including category labels/hints, group
+  headings and the report body text. `config.js` now holds structure only.
+- Manifest `DefaultLocale` is `en-US` with `da-DK` and `sv-SE` overrides for description, group
+  label, button label and tooltip.
+- `examples/config.sv-SE.js` removed – Swedish is built in.
+
+### Added
+- English and Swedish locales alongside Danish.
+- `LANGUAGE` (`"auto"` follows the Outlook display language, or a fixed code),
+  `DEFAULT_LANGUAGE` and `SHOW_LANGUAGE_SELECTOR` in `config.js`.
+- Language selector in the pane; the user's choice is stored in `roamingSettings` and
+  overrides the configured language for that user. *Automatic* resets it.
+- Trilingual `support.html`.
+- Smoke test coverage for automatic language resolution and switching.
+
 ## [1.0.0] – 2026-09-17
 
 ### Added

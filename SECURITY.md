@@ -7,7 +7,7 @@
 | The full reported e-mail (headers + body + attachments) as `.eml` | Cisco Talos, via one of the `*@access.ironport.com` addresses, plus any `CC_ADDRESSES` | Only when the user clicks a category button |
 | Subject and sender of the selected mail | Shown in the pane; written to the in-pane log and browser console | While the pane is open |
 | Microsoft Graph access token            | Kept in MSAL's cache (`localStorage` of the add-in origin) | Automatic mode only |
-| "Keep a copy in Sent Items" choice       | `Office.context.roamingSettings` (the user's mailbox) | When changed |
+| "Keep a copy in Sent Items" and language choices | `Office.context.roamingSettings` (the user's mailbox) | When changed |
 
 Nothing is sent to the add-in's own web host except requests for the static files. There is no
 backend, no telemetry and no third-party script apart from Office.js

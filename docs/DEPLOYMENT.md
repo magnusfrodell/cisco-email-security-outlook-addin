@@ -17,22 +17,22 @@ if you want automatic mode. Central deployment can then take a few hours to reac
 
 ## Step 1 – Host the files
 
-1. Pick the hostname, e.g. `addin.firma.dk`. The contents of `src/` must be served from the
+1. Pick the hostname, e.g. `addin.contoso.com`. The contents of `src/` must be served from the
    root of that origin:
-   `https://addin.firma.dk/taskpane.html`, `https://addin.firma.dk/assets/icon-64.png`, …
+   `https://addin.contoso.com/taskpane.html`, `https://addin.contoso.com/assets/icon-64.png`, …
 2. Upload everything under `src/` to the host.
 3. Put the real host into the manifest:
 
    ```bash
-   scripts/set-host.sh addin.firma.dk                 # edits src/manifest.xml in place
-   scripts/set-host.sh addin.firma.dk manifest-prod.xml   # or write a separate copy
+   scripts/set-host.sh addin.contoso.com                 # edits src/manifest.xml in place
+   scripts/set-host.sh addin.contoso.com manifest-prod.xml   # or write a separate copy
    ```
 
-   PowerShell: `.\scripts\set-host.ps1 -Host addin.firma.dk`.
+   PowerShell: `.\scripts\set-host.ps1 -Host addin.contoso.com`.
    The script replaces every `https://addin.example.com` URL and leaves the paths alone.
 4. Optionally change `<ProviderName>` in the manifest to the organisation's name.
-5. Verify in a browser that `https://addin.firma.dk/taskpane.html` and
-   `https://addin.firma.dk/assets/icon-64.png` return 200 with a trusted certificate.
+5. Verify in a browser that `https://addin.contoso.com/taskpane.html` and
+   `https://addin.contoso.com/assets/icon-64.png` return 200 with a trusted certificate.
 
 If the host sends a Content-Security-Policy, it must allow scripts from
 `https://appsforoffice.microsoft.com` and connections to `https://login.microsoftonline.com`
@@ -52,10 +52,10 @@ Skip this step if compose mode is enough. Leave `CLIENT_ID` empty in that case.
 
 1. [entra.microsoft.com](https://entra.microsoft.com) → **Identity → Applications →
    App registrations → New registration**.
-2. **Name:** `Rapportér mail til Cisco` (or anything recognisable).
+2. **Name:** `Cisco Email Security Reporter` (or anything recognisable).
    **Supported account types:** *Accounts in this organizational directory only*.
    **Redirect URI:** platform **Single-page application (SPA)**, value
-   `brk-multihub://addin.firma.dk`.
+   `brk-multihub://addin.contoso.com`.
    Origin only: no scheme, no path; include the port if it is not 443.
 3. **Register**, then copy the **Application (client) ID** and **Directory (tenant) ID**.
 4. **API permissions → Add a permission → Microsoft Graph → Delegated permissions:**
@@ -72,10 +72,11 @@ requests fail with `AADSTS50011`.
 Edit `src/config.js` on the host:
 
 ```javascript
+LANGUAGE: "auto",                                             // or "da" / "en" / "sv" for everyone
 CLIENT_ID: "00000000-0000-0000-0000-000000000000",           // from step 2, or "" for compose mode
 AUTHORITY: "https://login.microsoftonline.com/<tenant-id>",  // tenant ID from step 2
 MOVE_AFTER_REPORT: true,
-CC_ADDRESSES: [],                                             // e.g. ["soc@firma.dk"]
+CC_ADDRESSES: [],                                             // e.g. ["soc@contoso.com"]
 ```
 
 See `docs/CONFIGURATION.md` for everything else. Configuration changes never require a manifest
@@ -85,11 +86,13 @@ update.
 
 1. Open <https://aka.ms/olksideload> – Outlook on the web opens the *Add-ins* dialog.
 2. **My add-ins → Add a custom add-in → Add from file** and pick your manifest.
-3. Select a message, click **Rapportér mail** (group *Mailsikkerhed*) and report it as, say,
-   *Marketing*.
-4. Expand **Teknisk log** at the bottom of the pane. It shows the chosen send mode, the reason if
-   automatic mode is not active, and every step of the send.
-5. During testing, set `CC_ADDRESSES` to your own address to see the outgoing report.
+3. Select a message, click **Report to Cisco** (group *Email security*; *Rapportér til Cisco* /
+   *Rapportera till Cisco* in a Danish or Swedish Outlook) and report it as, say, *Marketing*.
+4. Expand **Technical log** at the bottom of the pane. It shows the language chosen and why, the
+   send mode, the reason if automatic mode is not active, and every step of the send.
+5. Switch the language in the pane's settings and check that the ribbon (which follows the
+   Outlook display language) and the pane show what you expect.
+6. During testing, set `CC_ADDRESSES` to your own address to see the outgoing report.
 
 Test in Outlook on the web first (fastest feedback), then in the desktop clients the users
 actually have. Automatic mode can only be tested this way; the repository's smoke test covers
@@ -114,8 +117,8 @@ with a Cisco account registered for the organisation's domain. User reports appe
 
 ## Updating
 
-- **Files only** (`config.js`, HTML, CSS, JS, icons): upload to the host. Outlook fetches the
-  current version each time a pane opens.
+- **Files only** (`config.js`, locale files, HTML, CSS, JS, icons): upload to the host. Outlook
+  fetches the current version each time a pane opens.
 - **Manifest** (new button text, new icons, new permissions): bump `<Version>` (e.g. `1.0.1.0`),
   then *Integrated apps → select the app → Update* and upload the new manifest.
 

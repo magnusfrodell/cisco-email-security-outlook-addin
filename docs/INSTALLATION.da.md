@@ -1,13 +1,14 @@
 # Installationsvejledning (dansk)
 
-*Rapportér mail til Cisco* er et Outlook-tilføjelsesprogram, der lader brugerne rapportere spam,
-phishing, virus og marketing til Cisco Talos – og fortælle Cisco, når en legitim mail fejlagtigt
-blev stoppet. Hele brugerfladen er på dansk. Rapporterne sendes til Ciscos officielle
-indsendelsesadresser og kan følges i
+*Cisco Email Security Reporter* er et Outlook-tilføjelsesprogram, der lader brugerne rapportere
+spam, phishing, virus og marketing til Cisco Talos – og fortælle Cisco, når en legitim mail
+fejlagtigt blev stoppet. Brugerfladen findes på dansk, engelsk og svensk og følger automatisk
+brugerens sprog i Outlook; brugeren kan også selv vælge sprog i ruden. Rapporterne sendes til
+Ciscos officielle indsendelsesadresser og kan følges i
 [Cisco Talos Email Status Portal](https://talosintelligence.com/email_status_portal).
 
 Det erstatter Ciscos eget *Cisco Secure Email Submission Add-In*, hvis brugerflade kun findes på
-engelsk. Selve indsendelsen sker på præcis samme måde som i Ciscos add-in: den rapporterede mail
+engelsk og ikke kan tilpasses. Selve indsendelsen sker på præcis samme måde som i Ciscos add-in: den rapporterede mail
 sendes som en `message/rfc822`-vedhæftning (`.raw.eml`) til Cisco.
 
 ## Kategorier og adresser
@@ -47,7 +48,8 @@ Alt i mappen `src/`:
 | Fil                        | Formål                                                                    |
 | -------------------------- | ------------------------------------------------------------------------- |
 | `manifest.xml`             | Add-in-manifest (dansk). Uploades til Microsoft 365 Admin Center.         |
-| `config.js`                | Al konfiguration: adresser, kategorier, Entra client-ID, Cc, emne, tekster. |
+| `config.js`                | Al konfiguration: sprog, adresser, kategorier, Entra client-ID, Cc, emne. |
+| `locales/da.js` m.fl.      | Én fil pr. sprog med alle tekster i ruden (dansk, engelsk, svensk).        |
 | `taskpane.html/.css/.js`   | Selve ruden.                                                              |
 | `lib/msal-browser.min.js`  | MSAL.js (selvhostet). Bruges kun til automatisk afsendelse.               |
 | `assets/icon-*.png`        | Ikoner.                                                                   |
@@ -99,11 +101,16 @@ gennem Outlook (Nested App Authentication). Uden den fejler tokenhentning med AA
 ## Trin 3 – Udfyld `config.js`
 
 ```javascript
+LANGUAGE: "auto",            // følger Outlooks sprog – eller "da" for dansk til alle
 CLIENT_ID: "00000000-0000-0000-0000-000000000000",          // fra trin 2
 AUTHORITY: "https://login.microsoftonline.com/<tenant-id>", // jeres tenant-ID
 MOVE_AFTER_REPORT: true,
 CC_ADDRESSES: [],            // fx ["soc@firma.dk"] for en intern kopi
 ```
+
+`LANGUAGE: "auto"` giver dansk til brugere med dansk Outlook, engelsk/svensk til de øvrige.
+`LANGUAGE: "da"` giver dansk til alle. Sprogvælgeren i ruden kan slås fra med
+`SHOW_LANGUAGE_SELECTOR: false`.
 
 Upload filen igen til webstedet. Ingen ændringer i manifestet er nødvendige, når konfigurationen
 ændres.
@@ -113,8 +120,8 @@ Upload filen igen til webstedet. Ingen ændringer i manifestet er nødvendige, n
 1. Åbn <https://aka.ms/olksideload> (Outlook på nettet åbner dialogen *Tilføjelsesprogrammer*).
 2. **Mine tilføjelsesprogrammer → Tilføj et brugerdefineret tilføjelsesprogram → Tilføj fra fil**
    og vælg manifestet.
-3. Vælg en mail, klik **Rapportér mail** i båndet (under *Mailsikkerhed*) og rapportér den som fx
-   *Marketing*.
+3. Vælg en mail, klik **Rapportér til Cisco** i båndet (under *Mailsikkerhed*) og rapportér den
+   som fx *Marketing*.
 4. Åbn **Teknisk log** nederst i ruden. Den viser den valgte afsendelsesmåde, årsagen hvis
    automatisk afsendelse ikke er aktiv, og hvert trin i afsendelsen.
 5. Sæt evt. `CC_ADDRESSES` til jeres egen adresse under test for at se den udgående rapport.
@@ -150,11 +157,12 @@ webstedet – Outlook henter altid den seneste version derfra.
 | Fejl med **AADSTS50011** (redirect URI)                                     | `brk-multihub://<host>` matcher ikke det hostnavn, `taskpane.html` er publiceret på. Skal være identisk med origin (inkl. port).                                                     |
 | Rapporten sendes, men mailen kunne ikke flyttes                            | `Mail.ReadWrite` mangler eller er ikke godkendt. Giv rettigheden, eller sæt `MOVE_AFTER_REPORT: false`.                                                                              |
 | Store mails åbner altid en ny mail                                         | Forventet over 3 MB (`MAX_GRAPH_ATTACHMENT_BYTES`). Microsoft Graph afviser større vedhæftninger i `sendMail`.                                                                        |
-| Knappen *Rapportér mail* vises ikke                                        | Udrulningen er ikke slået igennem endnu (op til 24 t), læseruden er slået fra i Outlook, eller manifestet er ikke tildelt brugeren.                                                    |
+| Knappen *Rapportér til Cisco* vises ikke                                   | Udrulningen er ikke slået igennem endnu (op til 24 t), læseruden er slået fra i Outlook, eller manifestet er ikke tildelt brugeren.                                                    |
+| Ruden er på engelsk, selv om Outlook er dansk                              | Brugeren har valgt et sprog i ruden (vælg *Automatisk* igen), eller `LANGUAGE` i `config.js` er sat fast. *Teknisk log* viser linjen *Language* med årsagen.                            |
 | Ruden er tom / fejl om `Office is not defined`                             | `https://appsforoffice.microsoft.com` er blokeret af proxy/CSP.                                                                                                                       |
 | Ny mail åbnes uden vedhæftning                                             | Mailen er en kladde eller endnu ikke gemt på serveren. Rapportér kun modtagne mails.                                                                                                  |
 
-Alle hændelser logges også til browserkonsollen med præfikset `[CiscoRapport]`.
+Alle hændelser logges også til browserkonsollen med præfikset `[CiscoReporter]`.
 Den engelske fejlfindingsvejledning (`docs/TROUBLESHOOTING.md`) er mere udførlig.
 
 ## Forskelle i forhold til Ciscos eget add-in

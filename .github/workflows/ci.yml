@@ -20,8 +20,26 @@ jobs:
         run: |
           node --check src/taskpane.js
           node --check src/config.js
-          node --check examples/config.sv-SE.js
+          for f in src/locales/*.js; do node --check "$f"; done
           node --check tests/office-stub.js
+
+      - name: Locale files share the same keys
+        run: |
+          node -e '
+            global.window = {};
+            const fs = require("fs");
+            for (const f of fs.readdirSync("src/locales")) require("./src/locales/" + f);
+            const L = window.REPORTER_LOCALES, codes = Object.keys(L);
+            const keys = o => Object.keys(o || {}).sort().join(",");
+            const ref = L[codes[0]]; let ok = true;
+            for (const c of codes) {
+              for (const part of ["strings", "categories", "groups"]) {
+                if (keys(L[c][part]) !== keys(ref[part])) { console.error(`${c}.${part} differs from ${codes[0]}`); ok = false; }
+              }
+            }
+            console.log(codes.join(", "), ok ? "OK" : "MISMATCH");
+            process.exit(ok ? 0 : 1);
+          '
 
       - name: Validate manifest (Microsoft validation service)
         run: npx --yes office-addin-manifest validate src/manifest.xml

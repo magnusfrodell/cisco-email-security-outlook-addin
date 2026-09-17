@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rapportér mail til Cisco</title>
-  <!-- Office.js skal indlæses i <head> før al anden kode -->
+  <title>Cisco Email Security Reporter</title>
+  <!-- Office.js must be loaded in <head> before any other script -->
   <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
   <link rel="stylesheet" href="taskpane.css">
 </head>
@@ -12,8 +12,8 @@
   <main id="app" class="app">
 
     <header class="head">
-      <div class="head-title" data-str="title">Rapportér mail til Cisco</div>
-      <span id="mode-chip" class="chip chip-neutral" data-str="chipStarting">Starter …</span>
+      <div class="head-title" data-str="title">Report mail to Cisco</div>
+      <span id="mode-chip" class="chip chip-neutral" data-str="chipStarting">Starting …</span>
     </header>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden>
@@ -23,7 +23,7 @@
     </div>
 
     <section class="panel">
-      <h2 class="section" data-str="selectedMail">Valgt mail</h2>
+      <h2 class="section" data-str="selectedMail">Selected mail</h2>
       <div class="mail">
         <div id="mail-subject" class="mail-subject">–</div>
         <div id="mail-from" class="mail-from"></div>
@@ -32,38 +32,48 @@
 
     <section class="panel">
       <h2 class="section" id="group-missed-title"></h2>
-      <p class="help" data-str="missedHelp">Mailen ligger i indbakken, men burde have været stoppet.</p>
+      <p class="help" data-str="missedHelp">The mail is in the inbox but should have been stopped.</p>
       <div id="group-missed" class="btn-list" role="group"></div>
     </section>
 
     <section class="panel">
       <h2 class="section" id="group-false_positive-title"></h2>
-      <p class="help" data-str="falsePositiveHelp">Mailen blev fejlagtigt markeret som spam eller marketing.</p>
+      <p class="help" data-str="falsePositiveHelp">The mail was wrongly marked as spam or marketing.</p>
       <div id="group-false_positive" class="btn-list" role="group"></div>
     </section>
 
     <section class="panel panel-settings" id="settings">
-      <h2 class="section" data-str="settings">Indstillinger</h2>
-      <label class="check">
-        <input type="checkbox" id="keep-copy">
-        <span data-str="keepCopy">Behold en kopi af rapporten i Sendt post</span>
-      </label>
+      <h2 class="section" data-str="settings">Settings</h2>
+      <div id="keep-copy-row">
+        <label class="check">
+          <input type="checkbox" id="keep-copy">
+          <span data-str="keepCopy">Keep a copy of the report in Sent Items</span>
+        </label>
+      </div>
+      <div class="select-row" id="language-row">
+        <label for="lang-select" data-str="language">Language</label>
+        <select id="lang-select"></select>
+      </div>
     </section>
 
     <details class="log">
-      <summary data-str="logSummary">Teknisk log</summary>
+      <summary data-str="logSummary">Technical log</summary>
       <pre id="log"></pre>
     </details>
 
     <footer class="foot">
-      <span data-str="footer">Rapporter sendes til Cisco Talos. Følg status på </span><a
+      <span data-str="footer">Reports go to Cisco Talos. Track their status in the </span><a
         href="https://talosintelligence.com/email_status_portal" target="_blank" rel="noopener"
         data-str="footerLink">Email Status Portal</a>.
     </footer>
 
   </main>
 
+  <!-- Order matters: config, then every locale file, then MSAL, then the pane logic -->
   <script src="config.js"></script>
+  <script src="locales/da.js"></script>
+  <script src="locales/en.js"></script>
+  <script src="locales/sv.js"></script>
   <script src="lib/msal-browser.min.js"></script>
   <script src="taskpane.js"></script>
 </body>
