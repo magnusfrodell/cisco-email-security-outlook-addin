@@ -74,6 +74,7 @@ window.REPORTER_LOCALES.da = {
     chipWait: "Sender",
     chipInfo: "Info",
     chipPressSend: "Tryk Send",
+    copySentTo: " En kopi er sendt til {address}.",
     chipUnavailable: "Ikke tilgængelig",
     autoUnavailable: "Automatisk afsendelse er ikke tilgængelig: {reason}. Rapporter åbnes som en ny mail i stedet.",
     autoUnavailableNoFallback: "Automatisk afsendelse er ikke tilgængelig: {reason}. Kontakt jeres IT-support.",

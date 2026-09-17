@@ -110,8 +110,20 @@ COMPOSE_FALLBACK: true,      // ny mail, hvis automatisk afsendelse ikke er tilg
 CLIENT_ID: "00000000-0000-0000-0000-000000000000",          // fra trin 2
 AUTHORITY: "https://login.microsoftonline.com/<tenant-id>", // jeres tenant-ID
 MOVE_AFTER_REPORT: true,
-CC_ADDRESSES: [],            // fx ["soc@firma.dk"] for en intern kopi
+SOC_ADDRESSES: [],           // fx ["soc@firma.dk"] – kopi af alle rapporter til SOC
+SOC_COPY_MODE: "cc",         // eller "bcc", så Cisco ikke ser SOC-adressen
+SEND_AS: "",                 // fx "soc@firma.dk" – send fra SOC-postkassen
 ```
+
+**SOC-indsigt (valgfrit, styres kun af administrator):** `SOC_ADDRESSES` giver SOC en kopi af
+hver rapport – samme mail som Cisco får, med originalen vedhæftet og en blok med kategori,
+bruger, oprindeligt emne, afsender og Message-ID i brødteksten. `SEND_AS` sender alle
+automatiske rapporter *fra* en delt postkasse (fx SOC), så Talos Email Status Portal viser alle
+indsendelser under den adresse. Det kræver en delt postkasse, *Send som*-rettighed til brugerne
+på den (Exchange admin center → postkassen → *Delegering*; *Send på vegne af* virker også, men
+mailen markeres "på vegne af") og at Entra-appen har rettigheden
+`Mail.Send.Shared` i stedet for `Mail.Send` med admin consent. Reserven *Ny mail* sender altid
+fra brugerens egen postkasse.
 
 `LANGUAGE: "auto"` giver dansk til brugere med dansk Outlook, engelsk/svensk til de øvrige.
 `LANGUAGE: "da"` giver dansk til alle. Sprogvælgeren i ruden kan slås fra med
@@ -130,7 +142,7 @@ Upload filen igen til webstedet. Ingen ændringer i manifestet er nødvendige, n
 4. Chippen øverst skal sige *Automatisk afsendelse*. Vises der i stedet en advarsel under
    overskriften, er automatisk afsendelse ikke aktiv – åbn **Teknisk log** nederst i ruden; den
    viser afsendelsesmåden, årsagen og hvert trin i afsendelsen.
-5. Sæt evt. `CC_ADDRESSES` til jeres egen adresse under test for at se den udgående rapport.
+5. Sæt evt. `SOC_ADDRESSES` til jeres egen adresse under test for at se den udgående rapport.
 
 ## Trin 5 – Udrul centralt via Microsoft 365 Admin Center
 

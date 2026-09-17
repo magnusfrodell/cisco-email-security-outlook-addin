@@ -74,6 +74,7 @@ window.REPORTER_LOCALES.sv = {
     chipWait: "Skickar",
     chipInfo: "Info",
     chipPressSend: "Tryck Skicka",
+    copySentTo: " En kopia har skickats till {address}.",
     chipUnavailable: "Inte tillgängligt",
     autoUnavailable: "Automatisk sändning är inte tillgänglig: {reason}. Rapporter öppnas som ett nytt mejl i stället.",
     autoUnavailableNoFallback: "Automatisk sändning är inte tillgänglig: {reason}. Kontakta er IT-support.",

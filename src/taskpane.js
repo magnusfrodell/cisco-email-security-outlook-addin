@@ -39,7 +39,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "1.2.0";
+  var VERSION = "1.3.0";
   var CFG = window.REPORTER_CONFIG || {};
   var LOCALES = window.REPORTER_LOCALES || {};
   var LOG_PREFIX = "[CiscoReporter]";
@@ -260,12 +260,104 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  function reporterAddress() {
+    try { return (Office.context.mailbox.userProfile && Office.context.mailbox.userProfile.emailAddress) || ""; }
+    catch (e) { return ""; }
+  }
+
+  function senderOf(item) {
+    var from = (item && item.from) || {};
+    if (!from.emailAddress) { return ""; }
+    return from.displayName ? from.displayName + " <" + from.emailAddress + ">" : from.emailAddress;
+  }
+
+  function fill(template, params) {
+    var text = String(template);
+    Object.keys(params).forEach(function (k) {
+      text = text.split("{" + k + "}").join(String(params[k] === undefined || params[k] === null ? "" : params[k]));
+    });
+    return text;
+  }
+
   function subjectFor(cat) {
-    return String(CFG.SUBJECT || "Cisco Secure Email submission").split("{category}").join(labelOf(cat));
+    var item = state.item || {};
+    var from = item.from || {};
+    var subject = String(item.subject || t("noSubject")).replace(/\s+/g, " ").trim();
+    if (subject.length > 120) { subject = subject.slice(0, 117) + "…"; }
+    return fill(CFG.SUBJECT || "Cisco Secure Email submission – {category}", {
+      category: labelOf(cat),
+      subject: subject,
+      sender: from.emailAddress || "",
+      reporter: reporterAddress()
+    }).trim();
   }
 
   function bodyText() {
     return String(L.bodyText || "");
+  }
+
+  /** Administrator-configured SOC recipients (SOC_ADDRESSES; CC_ADDRESSES kept as an alias). */
+  function socAddresses() {
+    var seen = {}, out = [];
+    [].concat(CFG.SOC_ADDRESSES || [], CFG.CC_ADDRESSES || []).forEach(function (a) {
+      var v = String(a || "").trim().toLowerCase();
+      if (v && !seen[v]) { seen[v] = true; out.push(v); }
+    });
+    return out;
+  }
+
+  function socMode() {
+    return String(CFG.SOC_COPY_MODE || "cc").toLowerCase() === "bcc" ? "bcc" : "cc";
+  }
+
+  function sendAs() {
+    return String(CFG.SEND_AS || "").trim();
+  }
+
+  /** Machine-readable details appended to the report body (for the SOC copy). */
+  function reportDetails(cat) {
+    var item = state.item || {};
+    var lines = [
+      ["Category", labelOf(cat) + " (" + cat.id + ")"],
+      ["Submitted to", cat.address],
+      ["Reported by", reporterAddress()],
+      ["Sent as", (state.mode === "graph" && sendAs()) ? sendAs() : (reporterAddress() || "-")],
+      ["Original subject", item.subject || ""],
+      ["Original sender", senderOf(item)],
+      ["Original date", item.dateTimeCreated ? new Date(item.dateTimeCreated).toISOString() : ""],
+      ["Message-ID", item.internetMessageId || ""],
+      ["Client", clientInfo()],
+      ["Add-in", "Cisco Email Security Reporter " + VERSION + " (" + state.mode + ")"]
+    ];
+    return lines.map(function (l) { return l[0] + ": " + l[1]; }).join("\n");
+  }
+
+  function clientInfo() {
+    try {
+      var d = Office.context.diagnostics;
+      return d.host + " " + d.platform + " " + d.version;
+    } catch (e) { return ""; }
+  }
+
+  function bodyPlain(cat) {
+    var text = bodyText();
+    if (CFG.REPORT_DETAILS !== false) {
+      text += "\n\n--- Report details ---\n" + reportDetails(cat);
+    }
+    return text;
+  }
+
+  function bodyHtml(cat) {
+    var html = "<p>" + escapeHtml(bodyText()) + "</p>";
+    if (CFG.REPORT_DETAILS !== false) {
+      html += "<pre>--- Report details ---\n" + escapeHtml(reportDetails(cat)) + "</pre>";
+    }
+    return html;
+  }
+
+  function socStatusSuffix() {
+    var list = socAddresses();
+    return (list.length && CFG.SOC_SHOW_IN_STATUS) ? t("copySentTo", { address: list.join(", ") }) : "";
   }
 
   function folderName(id) {
@@ -464,22 +556,25 @@
     if (!item || !item.itemId) {
       throw new Error(t("selectFirst"));
     }
+    var soc = socAddresses();
     var params = {
       toRecipients: [cat.address],
-      ccRecipients: CFG.CC_ADDRESSES || [],
+      ccRecipients: socMode() === "cc" ? soc : [],
+      bccRecipients: socMode() === "bcc" ? soc : [],
       subject: subjectFor(cat),
-      htmlBody: "<p>" + escapeHtml(bodyText()) + "</p>",
+      htmlBody: bodyHtml(cat),
       attachments: [{
         type: "item",
         name: (item.subject || t("reportedMailName")).slice(0, 120),
         itemId: item.itemId
       }]
     };
-    log("info", "Opening new message (compose mode)", { to: cat.address, reason: reason || null });
+    if (sendAs()) { log("warn", "SEND_AS is ignored in compose mode – the report is sent from the user's mailbox"); }
+    log("info", "Opening new message (compose mode)", { to: cat.address, soc: soc, socMode: socMode(), reason: reason || null });
 
     var done = function () {
       setStatus("ok",
-        t("composeOpened", { address: cat.address }) + (reason ? " (" + reason + ")" : ""),
+        t("composeOpened", { address: cat.address }) + (reason ? " (" + reason + ")" : "") + socStatusSuffix(),
         { chip: t("chipPressSend") });
     };
 
@@ -568,7 +663,8 @@
   }
 
   async function reportViaGraph(cat) {
-    var scopes = ["Mail.Send"];
+    var asMailbox = sendAs();
+    var scopes = [asMailbox ? "Mail.Send.Shared" : "Mail.Send"];
     if (CFG.MOVE_AFTER_REPORT && cat.moveTo) { scopes.push("Mail.ReadWrite"); }
 
     var token = await getToken(scopes);
@@ -586,9 +682,10 @@
       return (list || []).map(function (a) { return { emailAddress: { address: a } }; });
     };
 
+    var soc = socAddresses();
     var message = {
       subject: subjectFor(cat),
-      body: { contentType: "Text", content: bodyText() },
+      body: { contentType: "Text", content: bodyPlain(cat) },
       toRecipients: recipients([cat.address]),
       internetMessageHeaders: [{ name: "X-MS-AddIn-Base64Encode", value: "true" }],
       attachments: [{
@@ -598,15 +695,21 @@
         contentBytes: eml
       }]
     };
-    if (CFG.CC_ADDRESSES && CFG.CC_ADDRESSES.length) {
-      message.ccRecipients = recipients(CFG.CC_ADDRESSES);
+    if (soc.length) {
+      if (socMode() === "bcc") { message.bccRecipients = recipients(soc); }
+      else { message.ccRecipients = recipients(soc); }
+    }
+    if (asMailbox) {
+      // Send from the shared mailbox: /me/sendMail with "from" set needs only Send As (or
+      // Send on Behalf) on that mailbox plus Mail.Send.Shared – not Full Access.
+      message.from = { emailAddress: { address: asMailbox } };
     }
 
     await graphPost("/me/sendMail", token, {
       message: message,
       saveToSentItems: keepCopy()
     });
-    log("info", "Report sent via Graph", { to: cat.address, category: cat.id });
+    log("info", "Report sent via Graph", { to: cat.address, category: cat.id, as: asMailbox || "me", soc: soc, socMode: socMode() });
 
     var moved = false;
     if (CFG.MOVE_AFTER_REPORT && cat.moveTo) {
@@ -621,7 +724,7 @@
 
     setStatus("ok",
       t("reported", { category: labelOf(cat).toLowerCase(), address: cat.address }) +
-      (moved ? t("movedTo", { folder: folderName(cat.moveTo) }) : "") + ".");
+      (moved ? t("movedTo", { folder: folderName(cat.moveTo) }) : "") + "." + socStatusSuffix());
     return { fallback: false };
   }
 
@@ -633,6 +736,9 @@
     var text = errText(e);
     if (/InteractionRequired|consent|AADSTS65001/i.test(text)) {
       return t("errConsent");
+    }
+    if (/ErrorSendAsDenied|SendAsDenied/i.test(text)) {
+      return t("errGraphDenied", { status: "Send As" });
     }
     if (e && (e.status === 401 || e.status === 403)) {
       return t("errGraphDenied", { status: e.status });

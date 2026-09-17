@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 match: `package.json`, `VERSION` in `src/taskpane.js`, and `<Version>` in `src/manifest.xml`
 (four-part form, e.g. `1.0.0.0`).
 
+## [1.3.0] – 2026-09-17
+
+### Added
+- SOC visibility, configured by the administrator only: `SOC_ADDRESSES` copies every report to
+  the SOC (Cc, or Bcc with `SOC_COPY_MODE: "bcc"`) in both send modes; `SOC_SHOW_IN_STATUS`
+  optionally tells the user.
+- `SEND_AS`: automatic reports can be sent from a shared (SOC) mailbox (`from` set on
+  `/me/sendMail` with `Mail.Send.Shared`), so the Talos Email Status Portal tracks all
+  submissions under one address. Requires Send As (or Send on Behalf) rights; the compose
+  fallback still sends from the user.
+- `REPORT_DETAILS`: a `--- Report details ---` block in the report body (category, Cisco
+  address, reporter, sent-as mailbox, original subject/sender/date, Message-ID, client,
+  add-in version) for the SOC copy and SIEM parsing.
+- `SUBJECT` placeholders `{subject}`, `{sender}`, `{reporter}` in addition to `{category}`;
+  the default subject now includes the original subject.
+- Locale string `copySentTo`; smoke-test coverage for the SOC copy and the details block.
+
+### Changed
+- `CC_ADDRESSES` renamed to `SOC_ADDRESSES`; the old key is still honoured as an alias.
+
 ## [1.2.0] – 2026-09-17
 
 ### Changed

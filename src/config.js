@@ -79,15 +79,42 @@ window.REPORTER_CONFIG = {
    */
   SAVE_TO_SENT_DEFAULT: false,
 
-  /* Extra recipients, e.g. an internal SOC mailbox. Added as Cc on every report.
-   * Example: ["soc@example.com"]
+  /* Subject of the report mail. Placeholders: {category} (label in the active language),
+   * {subject} (original subject, shortened), {sender} (original sender address),
+   * {reporter} (the reporting user's address).
    */
-  CC_ADDRESSES: [],
+  SUBJECT: "Cisco Secure Email submission – {category}: {subject}",
 
-  /* Subject of the report mail. {category} is replaced with the category label
-   * in the active language.
+  /* Append a machine-readable block to the report body (category, Cisco address, reporter,
+   * original subject/sender/date, Message-ID, client). Meant for the SOC copy; Cisco
+   * ignores the body and reads the attached .eml.
    */
-  SUBJECT: "Cisco Secure Email submission – {category}",
+  REPORT_DETAILS: true,
+
+  /* ======================================================================
+   * 3. SOC visibility (set by the administrator, not visible to users)
+   * ==================================================================== */
+
+  /* Every report is also delivered to these addresses, e.g. a SOC mailbox or a
+   * SIEM ingestion address. Applies to both send modes. Example: ["soc@example.com"]
+   */
+  SOC_ADDRESSES: [],
+
+  /* "cc": the SOC address is visible to Cisco on the report. "bcc": hidden. */
+  SOC_COPY_MODE: "cc",
+
+  /* Tell the user in the status text that a copy went to the SOC. */
+  SOC_SHOW_IN_STATUS: false,
+
+  /* Send reports FROM a shared mailbox (e.g. the SOC mailbox) instead of the user's own,
+   * so that every submission is tracked under that address in the Talos Email Status
+   * Portal. Automatic send only. Requires: the shared mailbox exists, each user has
+   * "Send As" permission on it (Send on Behalf also works but marks the mail "on behalf of"),
+   * and the Entra app has the delegated permission Mail.Send.Shared (instead of Mail.Send)
+   * with admin consent. Empty = send as the user.
+   * In the compose fallback the report is always sent from the user's own mailbox.
+   */
+  SEND_AS: "",
 
   /* Graph sendMail accepts at most ~3 MB of attachment inline. Larger mails fall back
    * to a new message automatically. Cisco accepts at most 10 MB per submission.
@@ -95,7 +122,7 @@ window.REPORTER_CONFIG = {
   MAX_GRAPH_ATTACHMENT_BYTES: 3 * 1024 * 1024,
 
   /* ======================================================================
-   * 3. Categories
+   * 4. Categories
    *    id      : key used in the locale files for label and hint
    *    group   : "missed" | "false_positive" (which panel the button is in)
    *    address : Cisco's official submission address – do not change

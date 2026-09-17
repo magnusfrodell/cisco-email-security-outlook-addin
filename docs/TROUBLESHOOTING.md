@@ -43,6 +43,9 @@ When graph mode cannot run, the pane keeps working but says so:
 | `AADSTS700016` application not found                                     | `CLIENT_ID` is wrong or the registration is in another tenant than `AUTHORITY` points to.                                                                                                                                                  |
 | `BrowserAuthError: popup_window_error` / nothing happens after the click | Interactive fallback needed but pop-ups are blocked. Grant admin consent so the silent path succeeds, or allow pop-ups for the add-in origin.                                                                                                |
 | *Rapporten er sendt, men mailen kunne ikke flyttes* in the log           | `Mail.ReadWrite` missing or not consented. Grant it or set `MOVE_AFTER_REPORT: false`. The report itself was delivered.                                                                                                                       |
+| `ErrorSendAsDenied` / status *(Send As)* with `SEND_AS` set              | The user lacks *Send As* on the shared mailbox, or the permission has not propagated yet (up to an hour). Grant it in the Exchange admin center (mailbox → Delegation) or with `Add-RecipientPermission`. *Send on Behalf* is not sufficient.                |
+| `403` on `sendMail` as soon as `SEND_AS` is set                           | The app has `Mail.Send` but not `Mail.Send.Shared`, or consent was not re-granted after adding it.                                                                                                                                         |
+| SOC never receives copies                                                | `SOC_ADDRESSES` empty or misspelled; check the `Report sent via Graph` / `Opening new message` log lines, which list `soc` and `socMode`. With `"bcc"` the copy is not visible in the user's Sent Items either.                                |
 | Graph `403 ErrorAccessDenied` on `sendMail`                              | `Mail.Send` not consented, or a mailbox policy blocks sending (shared mailbox without Send As, disabled mailbox). The user can still use *Send manuelt i stedet*.                                                                             |
 | Graph `413` or `ErrorMessageSizeExceeded`                                | EML larger than Graph accepts inline. Lower `MAX_GRAPH_ATTACHMENT_BYTES` so the automatic fallback triggers earlier.                                                                                                                       |
 | Large messages always open a new mail                                    | Expected above `MAX_GRAPH_ATTACHMENT_BYTES` (3 MB). Compose mode has no such limit; Cisco accepts up to 10 MB in total.                                                                                                                   |
@@ -75,7 +78,7 @@ https://<host>/assets/icon-64.png
 Reports appear in the [Talos Email Status Portal](https://talosintelligence.com/email_status_portal)
 under *Submissions* for the sender's domain. If nothing shows up while the log says
 `Report sent via Graph`, check the sender's Sent Items (with "keep a copy" on) or an address in
-`CC_ADDRESSES` to confirm the mail left the mailbox, and then mail flow rules / DLP that might
+`SOC_ADDRESSES` to confirm the mail left the mailbox, and then mail flow rules / DLP that might
 block a `message/rfc822` attachment to an external domain.
 
 ## Escalating

@@ -54,11 +54,14 @@
         saveAsync: function (cb) { cb({ status: "succeeded" }); }
       },
       mailbox: {
+        userProfile: { emailAddress: "bruger@firma.example", displayName: "Bruger Brugersen" },
         item: {
           itemType: "message",
           itemId: "AAMkAGI2THVSAAA=",
           subject: "Din konto er spærret – bekræft dine oplysninger nu",
-          from: { displayName: "Netbank Sikkerhed", emailAddress: "sikkerhed@netbank-login.example" }
+          from: { displayName: "Netbank Sikkerhed", emailAddress: "sikkerhed@netbank-login.example" },
+          dateTimeCreated: new Date("2026-09-17T08:15:00Z"),
+          internetMessageId: "<20260917081500.ABC123@netbank-login.example>"
         },
         addHandlerAsync: function (type, handler, cb) { window.__stubItemChanged = handler; cb({ status: "succeeded" }); },
         displayNewMessageForm: function (p) { window.__stubCalls.displayNewMessageForm.push(p); },

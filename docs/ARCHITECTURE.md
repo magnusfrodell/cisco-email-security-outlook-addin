@@ -149,10 +149,10 @@ Both modes produce the same kind of message. In graph mode the payload is built 
 ```json
 {
   "message": {
-    "subject": "Cisco Secure Email submission – Phishing",
-    "body": { "contentType": "Text", "content": "…BODY_TEXT…" },
+    "subject": "Cisco Secure Email submission – Phishing: Din konto er spærret …",
+    "body": { "contentType": "Text", "content": "…bodyText…\n\n--- Report details ---\nCategory: …\nReported by: …\nMessage-ID: …" },
     "toRecipients": [ { "emailAddress": { "address": "phish@access.ironport.com" } } ],
-    "ccRecipients": [ … CC_ADDRESSES … ],
+    "ccRecipients": [ … SOC_ADDRESSES (or bccRecipients with SOC_COPY_MODE "bcc") … ],
     "internetMessageHeaders": [ { "name": "X-MS-AddIn-Base64Encode", "value": "true" } ],
     "attachments": [ {
       "@odata.type": "#microsoft.graph.fileAttachment",
@@ -168,6 +168,20 @@ Both modes produce the same kind of message. In graph mode the payload is built 
 The attachment name pattern, content type and the `X-MS-AddIn-Base64Encode` header are the
 ones Cisco's add-in uses, so the message arriving at Talos is indistinguishable in shape.
 `saveToSentItems` follows the user's "keep a copy" setting.
+
+The request always goes to `POST /me/sendMail`. When `SEND_AS` names a shared mailbox the
+message carries `"from": { "emailAddress": { "address": "<SEND_AS>" } }` and the token is
+requested with the `Mail.Send.Shared` scope; Exchange then sends it from that mailbox
+(*Send As*) or on its behalf (*Send on Behalf*), and Talos attributes the submission to that
+address. Sending through `/me` rather than `/users/{mailbox}` avoids needing Full Access on the
+shared mailbox and keeps the "keep a copy" behaviour in the user's own Sent Items. The move step
+acts on the user's own mailbox (`/me/messages/{id}/move`).
+
+**SOC copy.** `SOC_ADDRESSES` are added as Cc (or Bcc with `SOC_COPY_MODE: "bcc"`) in both
+modes, so the SOC receives exactly what Cisco receives. The body's details block
+(`REPORT_DETAILS`) gives it category, Cisco address, reporting user, sent-as mailbox, original
+subject, sender, date and Message-ID in `Key: value` lines – stable English keys so a SIEM or a
+ticketing rule can parse them – followed by the client and add-in version.
 
 In compose mode Outlook builds the message itself from an *item attachment*; when the message
 leaves Exchange the attached item is emitted as a `message/rfc822` MIME part, which is the format
@@ -285,6 +299,9 @@ hides the whole panel when neither row is visible.
 
 | Function                     | Purpose                                                                                                                                                                                                                                                              |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subjectFor(cat)`            | Fills `SUBJECT` placeholders `{category}`, `{subject}` (original subject, ≤120 chars), `{sender}`, `{reporter}`.                                                                                                                                       |
+| `socAddresses()` / `socMode()` / `sendAs()` | Administrator settings normalised: de-duplicated lower-case SOC list (`SOC_ADDRESSES` + legacy `CC_ADDRESSES`), `"cc"`/`"bcc"`, shared mailbox or `""`.                                                                                  |
+| `reportDetails(cat)` / `bodyPlain(cat)` / `bodyHtml(cat)` | The `--- Report details ---` block and the full body in text (graph) or HTML (compose) form.                                                                                                                              |
 | `reportViaCompose(cat, reason)` | Builds the `displayNewMessageForm` parameters (to, cc, subject, HTML body, one `item` attachment with the current `itemId`). Uses the async variant when Mailbox 1.9 is available so failures surface; otherwise the sync call. Returns a promise.                       |
 | `getEmlBase64()`             | Promise wrapper around `item.getAsFileAsync`. Resolves with the base64 EML.                                                                                                                                                                                          |
 | `getToken(scopes)`           | Creates the MSAL nestable public client on first use (`clientId`, `authority`, `localStorage` cache), then `acquireTokenSilent`; on `InteractionRequiredAuthError` falls back to `acquireTokenPopup`. Any other error propagates.                                    |

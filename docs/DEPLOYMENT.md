@@ -107,11 +107,46 @@ COMPOSE_FALLBACK: true,                                       // new message whe
 CLIENT_ID: "00000000-0000-0000-0000-000000000000",           // from step 2
 AUTHORITY: "https://login.microsoftonline.com/<tenant-id>",  // model A; "…/organizations" for model B
 MOVE_AFTER_REPORT: true,
-CC_ADDRESSES: [],                                             // e.g. ["soc@contoso.com"]
+SOC_ADDRESSES: [],                                            // e.g. ["soc@contoso.com"] – copy of every report
+SOC_COPY_MODE: "cc",                                          // or "bcc" to hide the SOC from Cisco
+SEND_AS: "",                                                  // e.g. "soc@contoso.com" – submit from the SOC mailbox
 ```
 
 See `docs/CONFIGURATION.md` for everything else. Configuration changes never require a manifest
 update.
+
+### SOC visibility (optional)
+
+Two administrator-only settings give the SOC insight into what users report; users cannot see or
+change them.
+
+**A copy of every report** – set `SOC_ADDRESSES` to the SOC mailbox (or a ticketing or SIEM
+address). The SOC then receives the same mail Cisco receives, with the original as a `.raw.eml`
+attachment and a `--- Report details ---` block (category, reporter, original subject, sender,
+Message-ID) in the body. `SOC_COPY_MODE: "bcc"` keeps the SOC address off the mail Cisco sees;
+`SOC_SHOW_IN_STATUS: true` tells users a copy went to the SOC.
+
+**Submitting from the SOC mailbox** – set `SEND_AS` to a shared mailbox and every automatic
+report is sent from that mailbox, so the Talos Email Status Portal shows all submissions under
+one address the SOC owns. This needs three things:
+
+1. A shared mailbox, e.g. `soc@contoso.com` (Exchange admin center → *Recipients → Mailboxes →
+   Add a shared mailbox*).
+2. **Send As** permission for the reporting users on that mailbox – in the Exchange admin center
+   under the mailbox's *Delegation*, or for a group of users with PowerShell:
+
+   ```powershell
+   Add-RecipientPermission soc@contoso.com -AccessRights SendAs -Trustee "All Reporters" -Confirm:$false
+   ```
+
+   *Send on Behalf* works too, but recipients (Talos included) then see "user on behalf of
+   soc@contoso.com". Full Access is not required.
+3. The Entra app from step 2 needs the delegated permission **`Mail.Send.Shared`** instead of
+   `Mail.Send`, with admin consent granted again.
+
+Permission changes in Exchange can take up to an hour to be effective. The compose fallback
+cannot change the sender; if it kicks in, the report leaves from the user's own mailbox and the
+log says so.
 
 ## Step 4 – Test by sideloading
 
@@ -124,7 +159,8 @@ update.
    the language chosen and why, the send mode, the reasons, and every step of the send.
 5. Switch the language in the pane's settings and check that the ribbon (which follows the
    Outlook display language) and the pane show what you expect.
-6. During testing, set `CC_ADDRESSES` to your own address to see the outgoing report.
+6. During testing, set `SOC_ADDRESSES` to your own address to see the outgoing report exactly
+   as Cisco and the SOC receive it.
 
 Test in Outlook on the web first (fastest feedback), then in the desktop clients the users
 actually have. Automatic mode can only be tested this way; the repository's smoke test covers

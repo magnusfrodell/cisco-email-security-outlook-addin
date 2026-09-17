@@ -54,6 +54,12 @@ def build_preview(tmp: pathlib.Path, graph_ready: bool = False) -> pathlib.Path:
         cfg, n = re.subn(r'CLIENT_ID: "",', 'CLIENT_ID: "00000000-0000-0000-0000-000000000000",', cfg)
         assert n == 1, "CLIENT_ID not found in config.js"
         (dest / "config.js").write_text(cfg, encoding="utf-8")
+    else:
+        # compose scenario: an administrator-configured SOC copy
+        cfg = (dest / "config.js").read_text(encoding="utf-8")
+        cfg, n = re.subn(r'SOC_ADDRESSES: \[\],', 'SOC_ADDRESSES: ["soc@example.com"],', cfg)
+        assert n == 1, "SOC_ADDRESSES not found in config.js"
+        (dest / "config.js").write_text(cfg, encoding="utf-8")
     (dest / "office-stub.js").write_text(stub, encoding="utf-8")
     html = (dest / "taskpane.html").read_text(encoding="utf-8")
     html, n = re.subn(r'src="https://appsforoffice\.microsoft\.com/[^"]+"', 'src="office-stub.js"', html)
@@ -151,7 +157,14 @@ async def run(screenshots: pathlib.Path | None) -> int:
                 att = f.get("attachments") or []
                 check(len(att) == 1 and att[0]["type"] == "item" and att[0]["itemId"], "reported mail attached as item")
                 check("Phishing" in (f.get("subject") or ""), "subject carries the localized category label")
+                check("Din konto er spærret" in (f.get("subject") or ""), "subject carries the original subject ({subject})")
                 check("Rapport sendt" in (f.get("htmlBody") or ""), "body text comes from the active locale")
+                check(f.get("ccRecipients") == ["soc@example.com"] and not f.get("bccRecipients"),
+                      "SOC copy added as Cc (SOC_ADDRESSES, SOC_COPY_MODE cc)")
+                body = f.get("htmlBody") or ""
+                check("Reported by: bruger@firma.example" in body and "Submitted to: phish@access.ironport.com" in body
+                      and "Message-ID: &lt;20260917081500.ABC123@netbank-login.example&gt;" in body,
+                      "report details block present in the body")
             check(await page.get_attribute("#status", "data-kind") == "ok", "status box shows ok state")
             status_text = await page.text_content("#status-text") or ""
             check(cfg["addresses"]["phish"] in status_text, "status text names the Cisco address")

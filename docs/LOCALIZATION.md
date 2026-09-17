@@ -96,6 +96,7 @@ Placeholders in braces are replaced at runtime; keep them in the translation.
 | `footerLink`         |                         | Portal link text                                          |
 | `chipOk` `chipWarn` `chipErr` `chipWait` `chipInfo` | | Status chips                                  |
 | `chipPressSend`      |                         | Status chip after a compose-mode report                   |
+| `copySentTo`         | `{address}`             | Appended to the status when `SOC_SHOW_IN_STATUS` is on     |
 | `chipUnavailable`    |                         | Header chip when neither send mode is available            |
 | `autoUnavailable`    | `{reason}`              | Persistent notice: automatic send unavailable, fallback active |
 | `autoUnavailableNoFallback` | `{reason}`       | Persistent notice: automatic send unavailable, no fallback |

@@ -74,6 +74,7 @@ window.REPORTER_LOCALES.en = {
     chipWait: "Sending",
     chipInfo: "Info",
     chipPressSend: "Press Send",
+    copySentTo: " A copy was sent to {address}.",
     chipUnavailable: "Unavailable",
     autoUnavailable: "Automatic send is not available: {reason}. Reports will open as a new message instead.",
     autoUnavailableNoFallback: "Automatic send is not available: {reason}. Contact your IT support.",

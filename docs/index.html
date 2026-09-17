@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cisco Email Security Reporter – documentation v1.2.0</title>
+<title>Cisco Email Security Reporter – documentation v1.3.0</title>
 <style>
 :root{--bg:#f4f6f9;--accent:#1f77b4;--accent-dark:#16609a;--ink:#1b2733;--muted:#5b6b7b;--line:#d9e1ea;
 --dark-a:#0f2a43;--dark-b:#0a1f33;--side:240px;--shadow:0 2px 10px rgba(15,42,67,.08)}
@@ -130,9 +130,9 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <body>
 <button class="toggle" id="toggle" aria-label="Menu">☰ Menu</button>
 <nav class="side" id="side">
-  <div class="brand"><strong>Cisco Email Security Reporter</strong><span>Outlook add-in · v1.2.0 · built 2026-09-17</span></div>
+  <div class="brand"><strong>Cisco Email Security Reporter</strong><span>Outlook add-in · v1.3.0 · built 2026-09-17</span></div>
   <div class="grp">Contents</div>
-  <a href="#overview">Overview</a><a class="sub" href="#overview--installation">Installation</a><a class="sub" href="#overview--configuration">Configuration</a><a class="sub" href="#overview--usage">Usage</a><a class="sub" href="#overview--documentation">Documentation</a><a class="sub" href="#overview--known-issues">Known issues</a><a class="sub" href="#overview--getting-help">Getting help</a><a class="sub" href="#overview--getting-involved">Getting involved</a><a class="sub" href="#overview--credits-and-references">Credits and references</a><a class="sub" href="#overview--licensing-info">Licensing info</a><a href="#deployment">Deployment guide</a><a class="sub" href="#deployment--prerequisites">Prerequisites</a><a class="sub" href="#deployment--step-1-host-the-files">Step 1 – Host the files</a><a class="sub" href="#deployment--step-2-entra-app-registration">Step 2 – Entra app registration</a><a class="sub" href="#deployment--step-3-configure">Step 3 – Configure</a><a class="sub" href="#deployment--step-4-test-by-sideloading">Step 4 – Test by sideloading</a><a class="sub" href="#deployment--step-5-central-deployment">Step 5 – Central deployment</a><a class="sub" href="#deployment--step-6-verify-at-cisco">Step 6 – Verify at Cisco</a><a class="sub" href="#deployment--updating">Updating</a><a class="sub" href="#deployment--removing">Removing</a><a href="#installation-da">Installationsvejledning (dansk)</a><a class="sub" href="#installation-da--kategorier-og-adresser">Kategorier og adresser</a><a class="sub" href="#installation-da--sadan-virker-det">Sådan virker det</a><a class="sub" href="#installation-da--filer-der-skal-publiceres">Filer, der skal publiceres</a><a class="sub" href="#installation-da--trin-1-publicer-filerne-pa-et-https-websted">Trin 1 – Publicér filerne på et HTTPS-websted</a><a class="sub" href="#installation-da--trin-2-entra-appregistrering">Trin 2 – Entra-appregistrering</a><a class="sub" href="#installation-da--trin-3-udfyld-configjs">Trin 3 – Udfyld config.js</a><a class="sub" href="#installation-da--trin-4-test-ved-sideloading">Trin 4 – Test ved sideloading</a><a class="sub" href="#installation-da--trin-5-udrul-centralt-via-microsoft-365-admin-center">Trin 5 – Udrul centralt via Microsoft 365 Admin Center</a><a class="sub" href="#installation-da--trin-6-verificer-i-talos-email-status-portal">Trin 6 – Verificér i Talos Email Status Portal</a><a class="sub" href="#installation-da--opdatering">Opdatering</a><a class="sub" href="#installation-da--fejlfinding">Fejlfinding</a><a class="sub" href="#installation-da--forskelle-i-forhold-til-ciscos-eget-add-in">Forskelle i forhold til Ciscos eget add-in</a><a href="#configuration">Configuration</a><a class="sub" href="#configuration--language">Language</a><a class="sub" href="#configuration--sending">Sending</a><a class="sub" href="#configuration--categories">Categories</a><a class="sub" href="#configuration--recipes">Recipes</a><a href="#architecture">Architecture &amp; code reference</a><a class="sub" href="#architecture--1-overview">1. Overview</a><a class="sub" href="#architecture--2-send-modes">2. Send modes</a><a class="sub" href="#architecture--3-the-report-message">3. The report message</a><a class="sub" href="#architecture--4-files">4. Files</a><a class="sub" href="#architecture--5-taskpanejs-reference">5. taskpane.js reference</a><a class="sub" href="#architecture--6-manifestxml-reference">6. manifest.xml reference</a><a class="sub" href="#architecture--7-client-support">7. Client support</a><a class="sub" href="#architecture--8-testing">8. Testing</a><a class="sub" href="#architecture--9-design-decisions">9. Design decisions</a><a href="#localization">Localization</a><a class="sub" href="#localization--how-the-language-is-chosen">How the language is chosen</a><a class="sub" href="#localization--1-locale-files">1. Locale files</a><a class="sub" href="#localization--2-ribbon-and-store-card-srcmanifestxml">2. Ribbon and store card (src/manifest.xml)</a><a class="sub" href="#localization--3-srcsupporthtml">3. src/support.html</a><a class="sub" href="#localization--what-not-to-translate">What not to translate</a><a href="#troubleshooting">Troubleshooting</a><a class="sub" href="#troubleshooting--start-with-the-log">Start with the log</a><a class="sub" href="#troubleshooting--what-the-fallback-looks-like">What the fallback looks like</a><a class="sub" href="#troubleshooting--symptoms">Symptoms</a><a class="sub" href="#troubleshooting--checking-the-host-from-a-browser">Checking the host from a browser</a><a class="sub" href="#troubleshooting--checking-the-report-at-cisco">Checking the report at Cisco</a><a class="sub" href="#troubleshooting--escalating">Escalating</a><a href="#security">Security</a><a class="sub" href="#security--what-the-add-in-does-with-data">What the add-in does with data</a><a class="sub" href="#security--permissions">Permissions</a><a class="sub" href="#security--things-to-be-aware-of">Things to be aware of</a><a class="sub" href="#security--reporting-a-vulnerability">Reporting a vulnerability</a><a href="#changelog">Changelog</a><a class="sub" href="#changelog--120-2026-09-17">[1.2.0] – 2026-09-17</a><a class="sub" href="#changelog--110-2026-09-17">[1.1.0] – 2026-09-17</a><a class="sub" href="#changelog--100-2026-09-17">[1.0.0] – 2026-09-17</a><a href="#notice">Notice</a>
+  <a href="#overview">Overview</a><a class="sub" href="#overview--installation">Installation</a><a class="sub" href="#overview--configuration">Configuration</a><a class="sub" href="#overview--usage">Usage</a><a class="sub" href="#overview--documentation">Documentation</a><a class="sub" href="#overview--known-issues">Known issues</a><a class="sub" href="#overview--getting-help">Getting help</a><a class="sub" href="#overview--getting-involved">Getting involved</a><a class="sub" href="#overview--credits-and-references">Credits and references</a><a class="sub" href="#overview--licensing-info">Licensing info</a><a href="#deployment">Deployment guide</a><a class="sub" href="#deployment--prerequisites">Prerequisites</a><a class="sub" href="#deployment--step-1-host-the-files">Step 1 – Host the files</a><a class="sub" href="#deployment--step-2-entra-app-registration">Step 2 – Entra app registration</a><a class="sub" href="#deployment--step-3-configure">Step 3 – Configure</a><a class="sub" href="#deployment--step-4-test-by-sideloading">Step 4 – Test by sideloading</a><a class="sub" href="#deployment--step-5-central-deployment">Step 5 – Central deployment</a><a class="sub" href="#deployment--step-6-verify-at-cisco">Step 6 – Verify at Cisco</a><a class="sub" href="#deployment--updating">Updating</a><a class="sub" href="#deployment--removing">Removing</a><a href="#installation-da">Installationsvejledning (dansk)</a><a class="sub" href="#installation-da--kategorier-og-adresser">Kategorier og adresser</a><a class="sub" href="#installation-da--sadan-virker-det">Sådan virker det</a><a class="sub" href="#installation-da--filer-der-skal-publiceres">Filer, der skal publiceres</a><a class="sub" href="#installation-da--trin-1-publicer-filerne-pa-et-https-websted">Trin 1 – Publicér filerne på et HTTPS-websted</a><a class="sub" href="#installation-da--trin-2-entra-appregistrering">Trin 2 – Entra-appregistrering</a><a class="sub" href="#installation-da--trin-3-udfyld-configjs">Trin 3 – Udfyld config.js</a><a class="sub" href="#installation-da--trin-4-test-ved-sideloading">Trin 4 – Test ved sideloading</a><a class="sub" href="#installation-da--trin-5-udrul-centralt-via-microsoft-365-admin-center">Trin 5 – Udrul centralt via Microsoft 365 Admin Center</a><a class="sub" href="#installation-da--trin-6-verificer-i-talos-email-status-portal">Trin 6 – Verificér i Talos Email Status Portal</a><a class="sub" href="#installation-da--opdatering">Opdatering</a><a class="sub" href="#installation-da--fejlfinding">Fejlfinding</a><a class="sub" href="#installation-da--forskelle-i-forhold-til-ciscos-eget-add-in">Forskelle i forhold til Ciscos eget add-in</a><a href="#configuration">Configuration</a><a class="sub" href="#configuration--language">Language</a><a class="sub" href="#configuration--sending">Sending</a><a class="sub" href="#configuration--soc-visibility">SOC visibility</a><a class="sub" href="#configuration--categories">Categories</a><a class="sub" href="#configuration--recipes">Recipes</a><a href="#architecture">Architecture &amp; code reference</a><a class="sub" href="#architecture--1-overview">1. Overview</a><a class="sub" href="#architecture--2-send-modes">2. Send modes</a><a class="sub" href="#architecture--3-the-report-message">3. The report message</a><a class="sub" href="#architecture--4-files">4. Files</a><a class="sub" href="#architecture--5-taskpanejs-reference">5. taskpane.js reference</a><a class="sub" href="#architecture--6-manifestxml-reference">6. manifest.xml reference</a><a class="sub" href="#architecture--7-client-support">7. Client support</a><a class="sub" href="#architecture--8-testing">8. Testing</a><a class="sub" href="#architecture--9-design-decisions">9. Design decisions</a><a href="#localization">Localization</a><a class="sub" href="#localization--how-the-language-is-chosen">How the language is chosen</a><a class="sub" href="#localization--1-locale-files">1. Locale files</a><a class="sub" href="#localization--2-ribbon-and-store-card-srcmanifestxml">2. Ribbon and store card (src/manifest.xml)</a><a class="sub" href="#localization--3-srcsupporthtml">3. src/support.html</a><a class="sub" href="#localization--what-not-to-translate">What not to translate</a><a href="#troubleshooting">Troubleshooting</a><a class="sub" href="#troubleshooting--start-with-the-log">Start with the log</a><a class="sub" href="#troubleshooting--what-the-fallback-looks-like">What the fallback looks like</a><a class="sub" href="#troubleshooting--symptoms">Symptoms</a><a class="sub" href="#troubleshooting--checking-the-host-from-a-browser">Checking the host from a browser</a><a class="sub" href="#troubleshooting--checking-the-report-at-cisco">Checking the report at Cisco</a><a class="sub" href="#troubleshooting--escalating">Escalating</a><a href="#security">Security</a><a class="sub" href="#security--what-the-add-in-does-with-data">What the add-in does with data</a><a class="sub" href="#security--permissions">Permissions</a><a class="sub" href="#security--things-to-be-aware-of">Things to be aware of</a><a class="sub" href="#security--reporting-a-vulnerability">Reporting a vulnerability</a><a href="#changelog">Changelog</a><a class="sub" href="#changelog--130-2026-09-17">[1.3.0] – 2026-09-17</a><a class="sub" href="#changelog--120-2026-09-17">[1.2.0] – 2026-09-17</a><a class="sub" href="#changelog--110-2026-09-17">[1.1.0] – 2026-09-17</a><a class="sub" href="#changelog--100-2026-09-17">[1.0.0] – 2026-09-17</a><a href="#notice">Notice</a>
 </nav>
 <main class="main">
 <section class="chapter" id="overview">
@@ -155,7 +155,7 @@ is not available, the add-in opens a pre-addressed message instead and tells the
 HTML/CSS/JavaScript with no build step, self-hosted MSAL.js 4 for Nested App Authentication,
 Microsoft Graph <code>sendMail</code> and <code>move</code>. Static files only – any HTTPS host serves it. Python +
 Playwright for the headless smoke test; GitHub Actions for CI and optional GitHub Pages hosting.</p>
-<p><strong>Status:</strong> 1.2.0 – feature complete for English, Danish and Swedish; validated with Microsoft's
+<p><strong>Status:</strong> 1.3.0 – feature complete for English, Danish and Swedish; validated with Microsoft's
 manifest validator and a headless smoke test on every commit. Testing automatic send end to end
 needs a Microsoft 365 tenant where you can register an Entra app (see Installation).</p>
 <p><a href="https://github.com/OWNER/cisco-email-security-outlook-addin/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/OWNER/cisco-email-security-outlook-addin/actions/workflows/ci.yml/badge.svg" /></a></p>
@@ -178,7 +178,11 @@ the language, and it cannot be adapted to how the organisation talks about mail 
   two false-positive categories legitimate and not-marketing – and any of them can be hidden or
   reworded.</li>
 <li>One click sends the report and moves the message to Junk or back to the Inbox; the user never
-  sees an outgoing mail. A copy can go to the SOC (<code>CC_ADDRESSES</code>).</li>
+  sees an outgoing mail.</li>
+<li>The SOC sees what users report: every report can be copied to a SOC mailbox
+  (<code>SOC_ADDRESSES</code>, Cc or Bcc) with a machine-readable details block, and all submissions can be
+  sent <em>from</em> the SOC's shared mailbox (<code>SEND_AS</code>) so they are tracked under one address in the
+  Talos Email Status Portal. Both are administrator settings, invisible to users.</li>
 <li>Everything is visible: a header chip shows the active send mode, a persistent notice explains
   a fallback, and a technical log in the pane gives support staff the whole story.</li>
 </ul>
@@ -267,9 +271,14 @@ host take effect the next time a pane opens – no manifest update.</p>
 <td>Move the reported mail to Junk / Inbox after a successful report.</td>
 </tr>
 <tr>
-<td><code>CC_ADDRESSES</code></td>
-<td><code>[]</code></td>
-<td>Extra recipients on every report, e.g. a SOC mailbox.</td>
+<td><code>SOC_ADDRESSES</code> / <code>SOC_COPY_MODE</code></td>
+<td><code>[]</code> / <code>"cc"</code></td>
+<td>Copy of every report to the SOC, visible to Cisco (Cc) or not (Bcc).</td>
+</tr>
+<tr>
+<td><code>SEND_AS</code></td>
+<td><code>""</code></td>
+<td>Submit from a shared (SOC) mailbox instead of the user; needs Send As + <code>Mail.Send.Shared</code>.</td>
 </tr>
 <tr>
 <td><code>CATEGORIES</code></td>
@@ -366,6 +375,8 @@ tests/          Office.js stub and headless smoke test
   tenant or deploy centrally.</li>
 <li>Cisco Secure Awareness simulated-phishing mails are reported as ordinary phishing; Cisco's
   add-in recognises them separately.</li>
+<li><code>SEND_AS</code> applies to automatic send only; when the compose fallback is used the report leaves
+  from the user's own mailbox.</li>
 <li>GitHub Pages hosting (the optional workflow) requires a public repository on free GitHub plans.</li>
 </ul>
 <p>Issues are tracked in <a href="../../issues">GitHub Issues</a>. Please attach the pane's technical log.</p>
@@ -492,11 +503,39 @@ step entirely.</p>
 <span class="nx">CLIENT_ID</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;00000000-0000-0000-0000-000000000000&quot;</span><span class="p">,</span><span class="w">           </span><span class="c1">// from step 2</span>
 <span class="nx">AUTHORITY</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://login.microsoftonline.com/&lt;tenant-id&gt;&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1">// model A; &quot;…/organizations&quot; for model B</span>
 <span class="nx">MOVE_AFTER_REPORT</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="nx">CC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w">                                             </span><span class="c1">// e.g. [&quot;soc@contoso.com&quot;]</span>
+<span class="nx">SOC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w">                                            </span><span class="c1">// e.g. [&quot;soc@contoso.com&quot;] – copy of every report</span>
+<span class="nx">SOC_COPY_MODE</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;cc&quot;</span><span class="p">,</span><span class="w">                                          </span><span class="c1">// or &quot;bcc&quot; to hide the SOC from Cisco</span>
+<span class="nx">SEND_AS</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w">                                                  </span><span class="c1">// e.g. &quot;soc@contoso.com&quot; – submit from the SOC mailbox</span>
 </code></pre></div>
 
 <p>See <code>docs/CONFIGURATION.md</code> for everything else. Configuration changes never require a manifest
 update.</p>
+<h3 id="deployment--soc-visibility-optional">SOC visibility (optional)</h3>
+<p>Two administrator-only settings give the SOC insight into what users report; users cannot see or
+change them.</p>
+<p><strong>A copy of every report</strong> – set <code>SOC_ADDRESSES</code> to the SOC mailbox (or a ticketing or SIEM
+address). The SOC then receives the same mail Cisco receives, with the original as a <code>.raw.eml</code>
+attachment and a <code>--- Report details ---</code> block (category, reporter, original subject, sender,
+Message-ID) in the body. <code>SOC_COPY_MODE: "bcc"</code> keeps the SOC address off the mail Cisco sees;
+<code>SOC_SHOW_IN_STATUS: true</code> tells users a copy went to the SOC.</p>
+<p><strong>Submitting from the SOC mailbox</strong> – set <code>SEND_AS</code> to a shared mailbox and every automatic
+report is sent from that mailbox, so the Talos Email Status Portal shows all submissions under
+one address the SOC owns. This needs three things:</p>
+<ol>
+<li>A shared mailbox, e.g. <code>soc@contoso.com</code> (Exchange admin center → <em>Recipients → Mailboxes →
+   Add a shared mailbox</em>).</li>
+<li><strong>Send As</strong> permission for the reporting users on that mailbox – in the Exchange admin center
+   under the mailbox's <em>Delegation</em>, or for a group of users with PowerShell:</li>
+</ol>
+<p><code>powershell
+   Add-RecipientPermission soc@contoso.com -AccessRights SendAs -Trustee "All Reporters" -Confirm:$false</code></p>
+<p><em>Send on Behalf</em> works too, but recipients (Talos included) then see "user on behalf of
+   soc@contoso.com". Full Access is not required.
+3. The Entra app from step 2 needs the delegated permission <strong><code>Mail.Send.Shared</code></strong> instead of
+   <code>Mail.Send</code>, with admin consent granted again.</p>
+<p>Permission changes in Exchange can take up to an hour to be effective. The compose fallback
+cannot change the sender; if it kicks in, the report leaves from the user's own mailbox and the
+log says so.</p>
 <h2 id="deployment--step-4-test-by-sideloading">Step 4 – Test by sideloading</h2>
 <ol>
 <li>Open <a href="https://aka.ms/olksideload">https://aka.ms/olksideload</a> – Outlook on the web opens the <em>Add-ins</em> dialog.</li>
@@ -508,7 +547,8 @@ update.</p>
    the language chosen and why, the send mode, the reasons, and every step of the send.</li>
 <li>Switch the language in the pane's settings and check that the ribbon (which follows the
    Outlook display language) and the pane show what you expect.</li>
-<li>During testing, set <code>CC_ADDRESSES</code> to your own address to see the outgoing report.</li>
+<li>During testing, set <code>SOC_ADDRESSES</code> to your own address to see the outgoing report exactly
+   as Cisco and the SOC receive it.</li>
 </ol>
 <p>Test in Outlook on the web first (fastest feedback), then in the desktop clients the users
 actually have. Automatic mode can only be tested this way; the repository's smoke test covers
@@ -708,9 +748,20 @@ gennem Outlook (Nested App Authentication). Uden den fejler tokenhentning med AA
 <span class="nx">CLIENT_ID</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;00000000-0000-0000-0000-000000000000&quot;</span><span class="p">,</span><span class="w">          </span><span class="c1">// fra trin 2</span>
 <span class="nx">AUTHORITY</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://login.microsoftonline.com/&lt;tenant-id&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// jeres tenant-ID</span>
 <span class="nx">MOVE_AFTER_REPORT</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="nx">CC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w">            </span><span class="c1">// fx [&quot;soc@firma.dk&quot;] for en intern kopi</span>
+<span class="nx">SOC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w">           </span><span class="c1">// fx [&quot;soc@firma.dk&quot;] – kopi af alle rapporter til SOC</span>
+<span class="nx">SOC_COPY_MODE</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;cc&quot;</span><span class="p">,</span><span class="w">         </span><span class="c1">// eller &quot;bcc&quot;, så Cisco ikke ser SOC-adressen</span>
+<span class="nx">SEND_AS</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w">                 </span><span class="c1">// fx &quot;soc@firma.dk&quot; – send fra SOC-postkassen</span>
 </code></pre></div>
 
+<p><strong>SOC-indsigt (valgfrit, styres kun af administrator):</strong> <code>SOC_ADDRESSES</code> giver SOC en kopi af
+hver rapport – samme mail som Cisco får, med originalen vedhæftet og en blok med kategori,
+bruger, oprindeligt emne, afsender og Message-ID i brødteksten. <code>SEND_AS</code> sender alle
+automatiske rapporter <em>fra</em> en delt postkasse (fx SOC), så Talos Email Status Portal viser alle
+indsendelser under den adresse. Det kræver en delt postkasse, <em>Send som</em>-rettighed til brugerne
+på den (Exchange admin center → postkassen → <em>Delegering</em>; <em>Send på vegne af</em> virker også, men
+mailen markeres "på vegne af") og at Entra-appen har rettigheden
+<code>Mail.Send.Shared</code> i stedet for <code>Mail.Send</code> med admin consent. Reserven <em>Ny mail</em> sender altid
+fra brugerens egen postkasse.</p>
 <p><code>LANGUAGE: "auto"</code> giver dansk til brugere med dansk Outlook, engelsk/svensk til de øvrige.
 <code>LANGUAGE: "da"</code> giver dansk til alle. Sprogvælgeren i ruden kan slås fra med
 <code>SHOW_LANGUAGE_SELECTOR: false</code>.</p>
@@ -726,7 +777,7 @@ gennem Outlook (Nested App Authentication). Uden den fejler tokenhentning med AA
 <li>Chippen øverst skal sige <em>Automatisk afsendelse</em>. Vises der i stedet en advarsel under
    overskriften, er automatisk afsendelse ikke aktiv – åbn <strong>Teknisk log</strong> nederst i ruden; den
    viser afsendelsesmåden, årsagen og hvert trin i afsendelsen.</li>
-<li>Sæt evt. <code>CC_ADDRESSES</code> til jeres egen adresse under test for at se den udgående rapport.</li>
+<li>Sæt evt. <code>SOC_ADDRESSES</code> til jeres egen adresse under test for at se den udgående rapport.</li>
 </ol>
 <h2 id="installation-da--trin-5-udrul-centralt-via-microsoft-365-admin-center">Trin 5 – Udrul centralt via Microsoft 365 Admin Center</h2>
 <ol>
@@ -889,16 +940,16 @@ file – they live in <code>src/locales/&lt;lang&gt;.js</code> (see <code>docs/L
 <td>Default for the per-user "keep a copy in Sent Items" checkbox (graph mode). The user's choice is stored in <code>roamingSettings</code> and overrides this.</td>
 </tr>
 <tr>
-<td><code>CC_ADDRESSES</code></td>
-<td>string[]</td>
-<td><code>[]</code></td>
-<td>Extra recipients on every report, e.g. an internal SOC mailbox. Applied in both modes.</td>
-</tr>
-<tr>
 <td><code>SUBJECT</code></td>
 <td>string</td>
-<td><code>Cisco Secure Email submission – {category}</code></td>
-<td>Subject of the report mail. <code>{category}</code> is replaced with the category label in the active language.</td>
+<td><code>Cisco Secure Email submission – {category}: {subject}</code></td>
+<td>Subject of the report mail. Placeholders: <code>{category}</code> (label in the active language), <code>{subject}</code> (original subject, shortened to 120 characters), <code>{sender}</code> (original sender address), <code>{reporter}</code> (reporting user).</td>
+</tr>
+<tr>
+<td><code>REPORT_DETAILS</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>Append a <code>--- Report details ---</code> block to the body: category, Cisco address, reporter, sent-as mailbox, original subject/sender/date, Message-ID, client, add-in version. Cisco ignores the body; the SOC copy and SIEMs can parse it.</td>
 </tr>
 <tr>
 <td><code>MAX_GRAPH_ATTACHMENT_BYTES</code></td>
@@ -908,7 +959,49 @@ file – they live in <code>src/locales/&lt;lang&gt;.js</code> (see <code>docs/L
 </tr>
 </tbody>
 </table>
-<p>The body text of the report mail is per language (<code>bodyText</code> in each locale file).</p>
+<p>The body text of the report mail is per language (<code>bodyText</code> in each locale file); the details
+block that follows it is always English so it stays machine-readable.</p>
+<h2 id="configuration--soc-visibility">SOC visibility</h2>
+<p>Set by the administrator in <code>config.js</code>; nothing here is visible or changeable in the pane.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SOC_ADDRESSES</code></td>
+<td>string[]</td>
+<td><code>[]</code></td>
+<td>Every report is also delivered to these addresses – a SOC mailbox, a ticketing address, a SIEM ingestion address. Applies in both send modes. (<code>CC_ADDRESSES</code> from 1.0–1.2 is still honoured as an alias.)</td>
+</tr>
+<tr>
+<td><code>SOC_COPY_MODE</code></td>
+<td>string</td>
+<td><code>"cc"</code></td>
+<td><code>"cc"</code>: the SOC address is visible to Cisco on the report. <code>"bcc"</code>: the copy is invisible to Cisco.</td>
+</tr>
+<tr>
+<td><code>SOC_SHOW_IN_STATUS</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Append "A copy was sent to …" to the status text so users know the SOC sees their reports.</td>
+</tr>
+<tr>
+<td><code>SEND_AS</code></td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Automatic send only: send every report <strong>from</strong> this shared mailbox (e.g. the SOC mailbox) instead of the user's own, so all submissions are tracked under one address in the Talos Email Status Portal. Needs <em>Send As</em> rights for each user on the mailbox (Send on Behalf also works but the mail is marked "on behalf of") and the delegated Graph permission <code>Mail.Send.Shared</code> with admin consent; no Full Access is needed. The compose fallback always sends from the user.</td>
+</tr>
+</tbody>
+</table>
+<p>What the SOC receives is the same mail Cisco receives: subject with category and original
+subject, the details block, and the original message as a <code>.raw.eml</code> attachment – enough to
+open the original, correlate it with mail-flow logs by Message-ID, and follow the case in Talos.</p>
 <h2 id="configuration--categories">Categories</h2>
 <p><code>CATEGORIES</code> is an array; order is display order within each group. Labels and hints come from
 the locale files, keyed by <code>id</code>.</p>
@@ -975,8 +1068,15 @@ Those are reserved for Cisco's add-in; this project uses the public ones.</p>
 
 <p><strong>Only spam, phishing and "not spam" (three buttons like Cisco's add-in):</strong> set <code>enabled: false</code>
 on <code>virus</code>, <code>ads</code> and <code>not_ads</code>.</p>
-<p><strong>Copy every report to the SOC:</strong></p>
-<div class="hl"><pre><span></span><code><span class="nx">CC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;soc@contoso.com&quot;</span><span class="p">],</span>
+<p><strong>Copy every report to the SOC, invisibly to Cisco, and tell the user:</strong></p>
+<div class="hl"><pre><span></span><code><span class="nx">SOC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;soc@contoso.com&quot;</span><span class="p">],</span>
+<span class="nx">SOC_COPY_MODE</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;bcc&quot;</span><span class="p">,</span>
+<span class="nx">SOC_SHOW_IN_STATUS</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</code></pre></div>
+
+<p><strong>Submit everything from the SOC mailbox so Talos shows one submitter for the organisation:</strong></p>
+<div class="hl"><pre><span></span><code><span class="nx">SEND_AS</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;soc@contoso.com&quot;</span><span class="p">,</span><span class="w">        </span><span class="c1">// shared mailbox; users need Send As; app needs Mail.Send.Shared</span>
+<span class="nx">SOC_ADDRESSES</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;soc@contoso.com&quot;</span><span class="p">],</span><span class="w">  </span><span class="c1">// optional – the SOC also gets its own copy</span>
 </code></pre></div>
 
 <p><strong>Shared multi-tenant app (one registration for every customer, as Cisco's add-in does):</strong></p>
@@ -1163,10 +1263,10 @@ sequenceDiagram
 <p>Both modes produce the same kind of message. In graph mode the payload is built explicitly:</p>
 <div class="hl"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;subject&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cisco Secure Email submission – Phishing&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;body&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;contentType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Text&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;…BODY_TEXT…&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;subject&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cisco Secure Email submission – Phishing: Din konto er spærret …&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;body&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;contentType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Text&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;…bodyText…\n\n--- Report details ---\nCategory: …\nReported by: …\nMessage-ID: …&quot;</span><span class="w"> </span><span class="p">},</span>
 <span class="w">    </span><span class="nt">&quot;toRecipients&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;emailAddress&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;address&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;phish@access.ironport.com&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">],</span>
-<span class="w">    </span><span class="nt">&quot;ccRecipients&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="err">CC_ADDRESSES</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;ccRecipients&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="err">SOC_ADDRESSES</span><span class="w"> </span><span class="err">(or</span><span class="w"> </span><span class="err">bccRecipie</span><span class="kc">nts</span><span class="w"> </span><span class="err">wi</span><span class="kc">t</span><span class="err">h</span><span class="w"> </span><span class="err">SOC_COPY_MODE</span><span class="w"> </span><span class="s2">&quot;bcc&quot;</span><span class="err">)</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">],</span>
 <span class="w">    </span><span class="nt">&quot;internetMessageHeaders&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;X-MS-AddIn-Base64Encode&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;true&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">],</span>
 <span class="w">    </span><span class="nt">&quot;attachments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;@odata.type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#microsoft.graph.fileAttachment&quot;</span><span class="p">,</span>
@@ -1182,6 +1282,18 @@ sequenceDiagram
 <p>The attachment name pattern, content type and the <code>X-MS-AddIn-Base64Encode</code> header are the
 ones Cisco's add-in uses, so the message arriving at Talos is indistinguishable in shape.
 <code>saveToSentItems</code> follows the user's "keep a copy" setting.</p>
+<p>The request always goes to <code>POST /me/sendMail</code>. When <code>SEND_AS</code> names a shared mailbox the
+message carries <code>"from": { "emailAddress": { "address": "&lt;SEND_AS&gt;" } }</code> and the token is
+requested with the <code>Mail.Send.Shared</code> scope; Exchange then sends it from that mailbox
+(<em>Send As</em>) or on its behalf (<em>Send on Behalf</em>), and Talos attributes the submission to that
+address. Sending through <code>/me</code> rather than <code>/users/{mailbox}</code> avoids needing Full Access on the
+shared mailbox and keeps the "keep a copy" behaviour in the user's own Sent Items. The move step
+acts on the user's own mailbox (<code>/me/messages/{id}/move</code>).</p>
+<p><strong>SOC copy.</strong> <code>SOC_ADDRESSES</code> are added as Cc (or Bcc with <code>SOC_COPY_MODE: "bcc"</code>) in both
+modes, so the SOC receives exactly what Cisco receives. The body's details block
+(<code>REPORT_DETAILS</code>) gives it category, Cisco address, reporting user, sent-as mailbox, original
+subject, sender, date and Message-ID in <code>Key: value</code> lines – stable English keys so a SIEM or a
+ticketing rule can parse them – followed by the client and add-in version.</p>
 <p>In compose mode Outlook builds the message itself from an <em>item attachment</em>; when the message
 leaves Exchange the attached item is emitted as a <code>message/rfc822</code> MIME part, which is the format
 Cisco documents for manual submissions ("forward as attachment").</p>
@@ -1408,6 +1520,18 @@ hides the whole panel when neither row is visible.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>subjectFor(cat)</code></td>
+<td>Fills <code>SUBJECT</code> placeholders <code>{category}</code>, <code>{subject}</code> (original subject, ≤120 chars), <code>{sender}</code>, <code>{reporter}</code>.</td>
+</tr>
+<tr>
+<td><code>socAddresses()</code> / <code>socMode()</code> / <code>sendAs()</code></td>
+<td>Administrator settings normalised: de-duplicated lower-case SOC list (<code>SOC_ADDRESSES</code> + legacy <code>CC_ADDRESSES</code>), <code>"cc"</code>/<code>"bcc"</code>, shared mailbox or <code>""</code>.</td>
+</tr>
+<tr>
+<td><code>reportDetails(cat)</code> / <code>bodyPlain(cat)</code> / <code>bodyHtml(cat)</code></td>
+<td>The <code>--- Report details ---</code> block and the full body in text (graph) or HTML (compose) form.</td>
+</tr>
 <tr>
 <td><code>reportViaCompose(cat, reason)</code></td>
 <td>Builds the <code>displayNewMessageForm</code> parameters (to, cc, subject, HTML body, one <code>item</code> attachment with the current <code>itemId</code>). Uses the async variant when Mailbox 1.9 is available so failures surface; otherwise the sync call. Returns a promise.</td>
@@ -1779,6 +1903,11 @@ it, change it.</p>
 <td>Status chip after a compose-mode report</td>
 </tr>
 <tr>
+<td><code>copySentTo</code></td>
+<td><code>{address}</code></td>
+<td>Appended to the status when <code>SOC_SHOW_IN_STATUS</code> is on</td>
+</tr>
+<tr>
 <td><code>chipUnavailable</code></td>
 <td></td>
 <td>Header chip when neither send mode is available</td>
@@ -2027,6 +2156,18 @@ and whether the compose fallback is allowed.</p>
 <td><code>Mail.ReadWrite</code> missing or not consented. Grant it or set <code>MOVE_AFTER_REPORT: false</code>. The report itself was delivered.</td>
 </tr>
 <tr>
+<td><code>ErrorSendAsDenied</code> / status <em>(Send As)</em> with <code>SEND_AS</code> set</td>
+<td>The user lacks <em>Send As</em> on the shared mailbox, or the permission has not propagated yet (up to an hour). Grant it in the Exchange admin center (mailbox → Delegation) or with <code>Add-RecipientPermission</code>. <em>Send on Behalf</em> is not sufficient.</td>
+</tr>
+<tr>
+<td><code>403</code> on <code>sendMail</code> as soon as <code>SEND_AS</code> is set</td>
+<td>The app has <code>Mail.Send</code> but not <code>Mail.Send.Shared</code>, or consent was not re-granted after adding it.</td>
+</tr>
+<tr>
+<td>SOC never receives copies</td>
+<td><code>SOC_ADDRESSES</code> empty or misspelled; check the <code>Report sent via Graph</code> / <code>Opening new message</code> log lines, which list <code>soc</code> and <code>socMode</code>. With <code>"bcc"</code> the copy is not visible in the user's Sent Items either.</td>
+</tr>
+<tr>
 <td>Graph <code>403 ErrorAccessDenied</code> on <code>sendMail</code></td>
 <td><code>Mail.Send</code> not consented, or a mailbox policy blocks sending (shared mailbox without Send As, disabled mailbox). The user can still use <em>Send manuelt i stedet</em>.</td>
 </tr>
@@ -2094,7 +2235,7 @@ https://&lt;host&gt;/assets/icon-64.png
 <p>Reports appear in the <a href="https://talosintelligence.com/email_status_portal">Talos Email Status Portal</a>
 under <em>Submissions</em> for the sender's domain. If nothing shows up while the log says
 <code>Report sent via Graph</code>, check the sender's Sent Items (with "keep a copy" on) or an address in
-<code>CC_ADDRESSES</code> to confirm the mail left the mailbox, and then mail flow rules / DLP that might
+<code>SOC_ADDRESSES</code> to confirm the mail left the mailbox, and then mail flow rules / DLP that might
 block a <code>message/rfc822</code> attachment to an external domain.</p>
 <h2 id="troubleshooting--escalating">Escalating</h2>
 <p>Collect: the pane log, the Outlook client and version (from the <code>Start</code> line), the language
@@ -2114,8 +2255,8 @@ to reproduce almost every issue.</p>
 </thead>
 <tbody>
 <tr>
-<td>The full reported e-mail (headers + body + attachments) as <code>.eml</code></td>
-<td>Cisco Talos, via one of the <code>*@access.ironport.com</code> addresses, plus any <code>CC_ADDRESSES</code></td>
+<td>The full reported e-mail (headers + body + attachments) as <code>.eml</code>, plus a details block (category, reporting user, original subject/sender/date, Message-ID)</td>
+<td>Cisco Talos, via one of the <code>*@access.ironport.com</code> addresses, and any <code>SOC_ADDRESSES</code> (Cc or Bcc) the administrator configured</td>
 <td>Only when the user clicks a category button</td>
 </tr>
 <tr>
@@ -2159,6 +2300,11 @@ backend, no telemetry and no third-party script apart from Office.js
 <td>automatic mode</td>
 </tr>
 <tr>
+<td>Graph delegated <code>Mail.Send.Shared</code></td>
+<td><code>POST /me/sendMail</code> with <code>from</code> set to a shared mailbox the user has Send As rights on</td>
+<td>automatic mode with <code>SEND_AS</code> (replaces <code>Mail.Send</code>)</td>
+</tr>
+<tr>
 <td>Graph delegated <code>Mail.ReadWrite</code></td>
 <td><code>POST /me/messages/{id}/move</code> to Junk/Inbox</td>
 <td>automatic mode with <code>MOVE_AFTER_REPORT: true</code></td>
@@ -2174,6 +2320,8 @@ organisation's own Entra app registration; no client secret exists anywhere in t
   the same addresses.</li>
 <li>In compose mode the report is an ordinary outgoing mail; it is subject to the organisation's
   DLP and mail-flow rules like any other message.</li>
+<li>The SOC copy is configured by the administrator and is not shown to the user unless
+  <code>SOC_SHOW_IN_STATUS</code> is on. Decide deliberately whether users should be told.</li>
 <li>Anyone who can modify the files on the add-in web host can change where reports are sent.
   Treat the host like any other production web property (access control, TLS, change tracking).</li>
 </ul>
@@ -2187,8 +2335,29 @@ The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changel
 <a href="https://semver.org/">Semantic Versioning</a>. The add-in version is kept in three places that must
 match: <code>package.json</code>, <code>VERSION</code> in <code>src/taskpane.js</code>, and <code>&lt;Version&gt;</code> in <code>src/manifest.xml</code>
 (four-part form, e.g. <code>1.0.0.0</code>).</p>
-<h2 id="changelog--120-2026-09-17">[1.2.0] – 2026-09-17</h2>
+<h2 id="changelog--130-2026-09-17">[1.3.0] – 2026-09-17</h2>
+<h3 id="changelog--added">Added</h3>
+<ul>
+<li>SOC visibility, configured by the administrator only: <code>SOC_ADDRESSES</code> copies every report to
+  the SOC (Cc, or Bcc with <code>SOC_COPY_MODE: "bcc"</code>) in both send modes; <code>SOC_SHOW_IN_STATUS</code>
+  optionally tells the user.</li>
+<li><code>SEND_AS</code>: automatic reports can be sent from a shared (SOC) mailbox (<code>from</code> set on
+  <code>/me/sendMail</code> with <code>Mail.Send.Shared</code>), so the Talos Email Status Portal tracks all
+  submissions under one address. Requires Send As (or Send on Behalf) rights; the compose
+  fallback still sends from the user.</li>
+<li><code>REPORT_DETAILS</code>: a <code>--- Report details ---</code> block in the report body (category, Cisco
+  address, reporter, sent-as mailbox, original subject/sender/date, Message-ID, client,
+  add-in version) for the SOC copy and SIEM parsing.</li>
+<li><code>SUBJECT</code> placeholders <code>{subject}</code>, <code>{sender}</code>, <code>{reporter}</code> in addition to <code>{category}</code>;
+  the default subject now includes the original subject.</li>
+<li>Locale string <code>copySentTo</code>; smoke-test coverage for the SOC copy and the details block.</li>
+</ul>
 <h3 id="changelog--changed">Changed</h3>
+<ul>
+<li><code>CC_ADDRESSES</code> renamed to <code>SOC_ADDRESSES</code>; the old key is still honoured as an alias.</li>
+</ul>
+<h2 id="changelog--120-2026-09-17">[1.2.0] – 2026-09-17</h2>
+<h3 id="changelog--changed_1">Changed</h3>
 <ul>
 <li>Automatic send through Microsoft Graph is now the configured default (<code>SEND_MODE: "graph"</code>).
   Opening a new message is a fallback, not a mode of its own: it is used when automatic send
@@ -2200,7 +2369,7 @@ match: <code>package.json</code>, <code>VERSION</code> in <code>src/taskpane.js<
 <li>Deployment guides now treat the Entra app registration as part of a standard installation
   and describe the shared multi-tenant registration model (one app, admin consent per tenant).</li>
 </ul>
-<h3 id="changelog--added">Added</h3>
+<h3 id="changelog--added_1">Added</h3>
 <ul>
 <li>Locale strings <code>chipUnavailable</code>, <code>autoUnavailable</code>, <code>autoUnavailableNoFallback</code>,
   <code>composeUnavailable</code>, <code>reasonNotConfigured</code>, <code>reasonClientUnsupported</code>, <code>reasonMsalMissing</code>.</li>
@@ -2211,7 +2380,7 @@ match: <code>package.json</code>, <code>VERSION</code> in <code>src/taskpane.js<
   <code>THIRD_PARTY_NOTICES.md</code>); <code>CONTRIBUTING.md</code> in the template's structure.</li>
 </ul>
 <h2 id="changelog--110-2026-09-17">[1.1.0] – 2026-09-17</h2>
-<h3 id="changelog--changed_1">Changed</h3>
+<h3 id="changelog--changed_2">Changed</h3>
 <ul>
 <li>Renamed to <strong>Cisco Email Security Reporter</strong> (repository
   <code>cisco-email-security-outlook-addin</code>). Manifest <code>DisplayName</code>, ribbon group
@@ -2228,7 +2397,7 @@ match: <code>package.json</code>, <code>VERSION</code> in <code>src/taskpane.js<
   license header added to every source file; bundled MSAL.js listed in
   <code>THIRD_PARTY_NOTICES.md</code>.</li>
 </ul>
-<h3 id="changelog--added_1">Added</h3>
+<h3 id="changelog--added_2">Added</h3>
 <ul>
 <li>English and Swedish locales alongside Danish.</li>
 <li><code>LANGUAGE</code> (<code>"auto"</code> follows the Outlook display language, or a fixed code),
@@ -2239,7 +2408,7 @@ match: <code>package.json</code>, <code>VERSION</code> in <code>src/taskpane.js<
 <li>Smoke test coverage for automatic language resolution and switching.</li>
 </ul>
 <h2 id="changelog--100-2026-09-17">[1.0.0] – 2026-09-17</h2>
-<h3 id="changelog--added_2">Added</h3>
+<h3 id="changelog--added_3">Added</h3>
 <ul>
 <li>Danish task pane with six report categories mapped to Cisco's documented submission addresses
   (spam, phish, virus, ads, ham, not_ads @access.ironport.com).</li>

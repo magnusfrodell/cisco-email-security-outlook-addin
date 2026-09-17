@@ -21,7 +21,7 @@ HTML/CSS/JavaScript with no build step, self-hosted MSAL.js 4 for Nested App Aut
 Microsoft Graph `sendMail` and `move`. Static files only – any HTTPS host serves it. Python +
 Playwright for the headless smoke test; GitHub Actions for CI and optional GitHub Pages hosting.
 
-**Status:** 1.2.0 – feature complete for English, Danish and Swedish; validated with Microsoft's
+**Status:** 1.3.0 – feature complete for English, Danish and Swedish; validated with Microsoft's
 manifest validator and a headless smoke test on every commit. Testing automatic send end to end
 needs a Microsoft 365 tenant where you can register an Entra app (see Installation).
 
@@ -48,7 +48,11 @@ With this add-in the organisation controls the whole experience:
   two false-positive categories legitimate and not-marketing – and any of them can be hidden or
   reworded.
 - One click sends the report and moves the message to Junk or back to the Inbox; the user never
-  sees an outgoing mail. A copy can go to the SOC (`CC_ADDRESSES`).
+  sees an outgoing mail.
+- The SOC sees what users report: every report can be copied to a SOC mailbox
+  (`SOC_ADDRESSES`, Cc or Bcc) with a machine-readable details block, and all submissions can be
+  sent *from* the SOC's shared mailbox (`SEND_AS`) so they are tracked under one address in the
+  Talos Email Status Portal. Both are administrator settings, invisible to users.
 - Everything is visible: a header chip shows the active send mode, a persistent notice explains
   a fallback, and a technical log in the pane gives support staff the whole story.
 
@@ -123,7 +127,8 @@ host take effect the next time a pane opens – no manifest update.
 | `SEND_MODE` / `COMPOSE_FALLBACK` | `"graph"` / `true` | Send through Graph; open a new message as the fallback when Graph is unavailable.       |
 | `CLIENT_ID` / `AUTHORITY`        | `""` / organizations | Entra app used for Graph; single-tenant or shared multi-tenant.                       |
 | `MOVE_AFTER_REPORT`              | `true`    | Move the reported mail to Junk / Inbox after a successful report.                                |
-| `CC_ADDRESSES`                   | `[]`      | Extra recipients on every report, e.g. a SOC mailbox.                                            |
+| `SOC_ADDRESSES` / `SOC_COPY_MODE` | `[]` / `"cc"` | Copy of every report to the SOC, visible to Cisco (Cc) or not (Bcc).                       |
+| `SEND_AS`                        | `""`      | Submit from a shared (SOC) mailbox instead of the user; needs Send As + `Mail.Send.Shared`.      |
 | `CATEGORIES`                     | six       | Cisco address, target folder and `enabled` flag per category; labels live in the locale files.   |
 
 Full reference with recipes: [docs/CONFIGURATION.md](docs/CONFIGURATION.md). Adding a language,
@@ -192,6 +197,8 @@ tests/          Office.js stub and headless smoke test
   tenant or deploy centrally.
 - Cisco Secure Awareness simulated-phishing mails are reported as ordinary phishing; Cisco's
   add-in recognises them separately.
+- `SEND_AS` applies to automatic send only; when the compose fallback is used the report leaves
+  from the user's own mailbox.
 - GitHub Pages hosting (the optional workflow) requires a public repository on free GitHub plans.
 
 Issues are tracked in [GitHub Issues](../../issues). Please attach the pane's technical log.
