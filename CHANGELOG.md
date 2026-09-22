@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 match: `package.json`, `VERSION` in `src/taskpane.js`, and `<Version>` in `src/manifest.xml`
 (four-part form, e.g. `1.0.0.0`).
 
+## [Unreleased]
+
+### Added
+- `docs/FAQ.md`: why automatic send needs an Entra app, what Cisco's add-in does under the hood
+  (EWS path dead since legacy tokens were turned off; Graph path with Cisco's own app), why the
+  Cisco pane cannot be self-hosted, how the consent models compare, how Talos treats reports.
+
 ## [1.3.0] – 2026-09-17
 
 ### Added

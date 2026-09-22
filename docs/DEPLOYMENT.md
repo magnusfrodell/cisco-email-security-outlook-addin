@@ -50,7 +50,8 @@ repository settings with *Source: GitHub Actions*, run the workflow, then sidelo
 
 Automatic send is the default and needs an Entra app registration to obtain Graph tokens
 through Outlook. Until `CLIENT_ID` is set, the pane shows a warning and opens a new message
-instead. Two models:
+instead. (If someone asks why an app is needed when Cisco's add-in "just works": Cisco's add-in
+uses its own Entra app, consented in your tenant – see `docs/FAQ.md`.) Two models:
 
 **A. One registration per customer tenant** (self-contained, recommended when the customer
 hosts the files):

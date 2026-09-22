@@ -171,6 +171,7 @@ npm run docs                         # regenerate docs/index.html
 | [docs/LOCALIZATION.md](docs/LOCALIZATION.md)       | Locale files, language selection, manifest overrides            |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)       | How it works, sequence diagrams, function-by-function reference |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Reading the log, error codes, fixes                             |
+| [docs/FAQ.md](docs/FAQ.md)                         | Why an Entra app is needed, what Cisco's add-in does under the hood, how Talos treats reports |
 | [docs/index.html](docs/index.html)                 | All of the above as one styled, offline HTML file (`npm run docs` rebuilds it) |
 | [SECURITY.md](SECURITY.md)                         | What data goes where, permissions                               |
 
@@ -206,7 +207,8 @@ Issues are tracked in [GitHub Issues](../../issues). Please attach the pane's te
 ## Getting help
 
 Start with the **Technical log** in the pane and [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md),
-which maps the common `AADSTS` and Graph errors to fixes. If that does not solve it, open a
+which maps the common `AADSTS` and Graph errors to fixes. Evaluation questions – why an Entra
+app is needed, how this compares with Cisco's add-in – are answered in [docs/FAQ.md](docs/FAQ.md). If that does not solve it, open a
 GitHub issue with the log, the Outlook client and version, and what you expected. This is Cisco
 sample code and is not supported by Cisco TAC.
 
