@@ -12,3 +12,4 @@ __pycache__/
 # local manifests with real hostnames
 manifest-*.xml
 !src/manifest.xml
+/manifest.xml
