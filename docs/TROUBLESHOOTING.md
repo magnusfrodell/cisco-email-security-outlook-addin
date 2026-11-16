@@ -9,16 +9,29 @@ for. The same lines go to the browser console with the prefix `[CiscoReporter]`
 A healthy graph-mode report looks like this:
 
 ```text
-13:26:06 INFO Start {"addin":"1.1.0","host":"Outlook","platform":"PC","version":"16.0.18…","displayLanguage":"da-DK"}
+13:26:06 INFO Start {"addin":"1.4.0","host":"Outlook","platform":"PC","version":"16.0.18…","displayLanguage":"da-DK"}
 13:26:06 INFO Language: da {"source":"Outlook display language da-DK","available":["da","en","sv"]}
 13:26:06 INFO Send mode: graph {"configured":"graph","fallback":true}
 13:26:06 INFO Mail selected {"subject":"…","from":"…","itemId":"AAMkAGI2THVSAAA…"}
 13:26:10 INFO Report started {"category":"phish","mode":"graph"}
 13:26:10 INFO Initialising MSAL (NAA) {"authority":"https://login.microsoftonline.com/…"}
-13:26:10 INFO Token acquired (silent)
+13:26:10 INFO Token acquired (silent) {"scopes":["Mail.Send","Mail.ReadWrite"]}
 13:26:11 INFO EML fetched {"bytes":48213}
 13:26:12 INFO Report sent via Graph {"to":"phish@access.ironport.com","category":"phish"}
-13:26:12 INFO Message moved {"to":"junkemail"}
+13:26:12 INFO Message moved {"to":"junkemail","mailbox":"me"}
+```
+
+The same report for a mail in a shared mailbox adds the lookup and a second token:
+
+```text
+13:31:02 INFO Mail selected {"subject":"…","from":"…","itemId":"AAMkADk3ZWUyAAA…"}
+13:31:02 INFO Item is in a shared mailbox or folder {"owner":"support@contoso.com","targetMailbox":"support@contoso.com","delegatePermissions":63,"user":"anna@contoso.com"}
+13:31:05 INFO Report started {"category":"spam","mode":"graph","language":"da","sharedMailbox":"support@contoso.com"}
+13:31:05 INFO Token acquired (silent) {"scopes":["Mail.Send"]}
+13:31:06 INFO EML fetched {"bytes":51877}
+13:31:07 INFO Report sent via Graph {"to":"spam@access.ironport.com","category":"spam","sharedMailbox":"support@contoso.com"}
+13:31:07 INFO Token acquired (silent) {"scopes":["Mail.ReadWrite.Shared"]}
+13:31:08 INFO Message moved {"to":"junkemail","mailbox":"support@contoso.com"}
 ```
 
 The `Send mode` line lists the reasons whenever the configured mode is not active, for example
@@ -49,9 +62,15 @@ When graph mode cannot run, the pane keeps working but says so:
 | Graph `403 ErrorAccessDenied` on `sendMail`                              | `Mail.Send` not consented, or a mailbox policy blocks sending (shared mailbox without Send As, disabled mailbox). The user can still use *Send manuelt i stedet*.                                                                             |
 | Graph `413` or `ErrorMessageSizeExceeded`                                | EML larger than Graph accepts inline. Lower `MAX_GRAPH_ATTACHMENT_BYTES` so the automatic fallback triggers earlier.                                                                                                                       |
 | Large messages always open a new mail                                    | Expected above `MAX_GRAPH_ATTACHMENT_BYTES` (3 MB). Compose mode has no such limit; Cisco accepts up to 10 MB in total.                                                                                                                   |
-| `getAsFileAsync` fails                                                   | Item is a draft, a meeting request, or in a shared/delegate mailbox where the API is not supported. Use *Send manuelt i stedet*.                                                                                                             |
+| `getAsFileAsync` fails                                                   | Item is a draft or a meeting request, or Outlook cannot export it. From 1.4.0 the pane then reads the MIME content through Graph by itself (log: `getAsFileAsync failed – reading the MIME content through Graph instead`); the error only reaches the user if that fails too. |
 | New mail opens without the attachment                                    | Item not saved on the server (draft) or the client could not resolve the `itemId`. Report only received messages.                                                                                                                          |
 | Button *Report to Cisco* missing                                         | Deployment not propagated yet (up to 24 h); reading pane turned off (Office.js needs it); user not in the assigned group; item is not a message (appointments never show the button).                                                        |
+| Button missing in a shared mailbox, present in the user's own mailbox   | A manifest older than 1.4.0 is still deployed (no `SupportsSharedFolders`); the add-in was deployed to the shared mailbox instead of to the user; or the Outlook client is older than the versions in `docs/ARCHITECTURE.md` § 7. |
+| Pane says *No mail selected* on a mail in a shared mailbox               | Microsoft limitation: the shared mailbox is hidden from the address list, or the user signed in to it with the mailbox's own password. Office.js then hands the add-in no item.                                                           |
+| No *Shared mailbox: …* line although the mail is in a shared mailbox     | `getSharedPropertiesAsync` answered "not shared" or did not answer (a warning in the log). The mail is then treated as the user's own and the move fails with 404. Note the client and version from the `Start` line.                     |
+| *Reporting from a shared mailbox needs the … permission*                 | The tenant has not consented to `Mail.ReadWrite.Shared` (or `Mail.Read.Shared`) for the Entra app, and Outlook could not supply the mail as a file. Add the delegated permission and grant admin consent (`docs/DEPLOYMENT.md`, "Shared mailboxes"). |
+| *The mail could not be read from the shared mailbox … (403 / 404)*       | The user has no Full Access to that mailbox, or the mailbox could not be found under the owner address or the `targetMailbox` value – the log shows both attempts.                                                                        |
+| Report from a shared mailbox is sent, but the mail stays where it is     | Log line `Report sent, but the message could not be moved`: with `Consent or sign-in required for Mail.ReadWrite.Shared` → grant the permission; with a Graph 403/404 → the user may read but not move in that mailbox. Log line `Message left in place` → `MOVE_IN_SHARED_MAILBOX` is `false`. |
 | Pane blank / `Office is not defined` in console                          | `https://appsforoffice.microsoft.com` blocked by proxy or CSP.                                                                                                                                                                             |
 | Pane shows raw keys like `chipAuto` or a category id like `spam`         | The active locale file is missing that key – usually an incomplete translation. Compare with `src/locales/en.js`.                                                                                                                          |
 | Pane is in the wrong language                                            | Read the `Language:` line in the log: `user setting` means the user picked a language in the pane (choose *Automatic* to reset); `config LANGUAGE` means it is forced in `config.js`; `default` means the Outlook language has no locale file. |

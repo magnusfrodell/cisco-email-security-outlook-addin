@@ -6,12 +6,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 match: `package.json`, `VERSION` in `src/taskpane.js`, and `<Version>` in `src/manifest.xml`
 (four-part form, e.g. `1.0.0.0`).
 
-## [Unreleased]
+## [1.4.0] – 2026-11-16
 
 ### Added
+- Reporting from shared mailboxes and shared folders. The manifest declares
+  `SupportsSharedFolders`; the pane recognises a mail outside the user's own mailbox with
+  `item.getSharedPropertiesAsync()`, names the mailbox under the selected mail, and reads and
+  moves the mail through `/users/{mailbox}` with the delegated `Mail.ReadWrite.Shared` scope
+  (owner address first, the client's `targetMailbox` value second). The report itself is still
+  sent from the user's own mailbox with `Mail.Send`.
+- `MOVE_IN_SHARED_MAILBOX` (default `true`): `false` reports such mails without moving them;
+  `Mail.Read.Shared` is then the only shared scope that can be needed.
+- If `getAsFileAsync` fails, the MIME content is read through Graph
+  (`…/messages/{id}/$value`) – from `/me` for the own mailbox, from the shared mailbox
+  otherwise – before any error is shown.
+- The token for the mail itself is requested silently on first use, so a missing `*.Shared`
+  consent never opens a sign-in window: with the EML from Outlook the report is sent and only
+  the move is skipped; otherwise the error names the missing permission.
+- `Shared mailbox: <address>` line in the report details of a mail reported from a shared
+  mailbox; `sharedMailbox` in the `Report started` and `Report sent via Graph` log lines.
+- Locale strings `sharedMailbox`, `errSharedConsent`, `errSharedAccess` (da/en/sv).
+- Smoke test: automatic send now runs against a mocked MSAL client and a mocked Microsoft
+  Graph – tokens requested, Graph calls made and what they carry – for own and shared
+  mailboxes.
 - `docs/FAQ.md`: why automatic send needs an Entra app, what Cisco's add-in does under the hood
-  (EWS path dead since legacy tokens were turned off; Graph path with Cisco's own app), why the
-  Cisco pane cannot be self-hosted, how the consent models compare, how Talos treats reports.
+  (EWS path dead since legacy tokens were turned off; Graph path with Cisco's own app), why it
+  fails in shared mailboxes even with a modified manifest and extra permissions, why the Cisco
+  pane cannot be self-hosted, how the consent models compare, how Talos treats reports.
+
+### Changed
+- Manifest `<Permissions>` is `ReadWriteMailbox` (was `ReadWriteItem`): Microsoft requires that
+  level for add-ins that act on items in shared mailboxes. Updating an existing deployment
+  means uploading the new manifest and accepting the permissions again. To opt out of shared
+  mailboxes, remove `SupportsSharedFolders` and set the permission back.
+- Token log lines list the scopes that were requested; `Message moved` names the mailbox.
 
 ## [1.3.0] – 2026-09-17
 

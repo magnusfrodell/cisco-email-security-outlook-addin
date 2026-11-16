@@ -55,6 +55,7 @@ window.REPORTER_LOCALES.en = {
     selectMailHint: "Select a mail in the list to report it.",
     noSubject: "(no subject)",
     fromPrefix: "From: ",
+    sharedMailbox: "Shared mailbox: {address}",
 
     missedHelp: "The mail is in the inbox but should have been stopped.",
     falsePositiveHelp: "The mail was wrongly marked as spam or marketing.",
@@ -100,6 +101,8 @@ window.REPORTER_LOCALES.en = {
     errConsent: "Consent to send mail on your behalf is missing. Ask your administrator to approve the add-in.",
     errGraphDenied: "Microsoft Graph refused the request ({status}). Check that the Mail.Send and Mail.ReadWrite permissions are granted.",
     errGetFile: "The mail could not be retrieved as a file in this version of Outlook.",
+    errSharedConsent: "Reporting from a shared mailbox needs the {permission} permission, which has not been approved. Ask your administrator to grant it to the add-in.",
+    errSharedAccess: "The mail could not be read from the shared mailbox {mailbox} ({status}). You need Full Access to that mailbox.",
     errNotOutlook: "This add-in must be opened from Outlook.",
     errStart: "The add-in could not start: "
   }

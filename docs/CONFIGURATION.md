@@ -22,6 +22,7 @@ file – they live in `src/locales/<lang>.js` (see `docs/LOCALIZATION.md`).
 | `CLIENT_ID`                  | string    | `""`                                               | Entra *Application (client) ID* used by graph mode. Empty with `SEND_MODE: "graph"` → persistent warning in the pane and the compose fallback (if allowed).    |
 | `AUTHORITY`                  | string    | `https://login.microsoftonline.com/organizations`  | MSAL authority. Use `https://login.microsoftonline.com/<tenant-id>` for a single-tenant registration.                                                        |
 | `MOVE_AFTER_REPORT`          | boolean   | `true`                                             | After a successful graph-mode report, move the message to the category's `moveTo` folder. Requires the delegated `Mail.ReadWrite` permission.                 |
+| `MOVE_IN_SHARED_MAILBOX`     | boolean   | `true`                                             | A mail reported from a shared mailbox (or from a folder another user shares) is moved too – for everyone who uses that mailbox. `false` reports it and leaves it in place. Moving there needs the delegated `Mail.ReadWrite.Shared` permission. |
 | `SAVE_TO_SENT_DEFAULT`       | boolean   | `false`                                            | Default for the per-user "keep a copy in Sent Items" checkbox (graph mode). The user's choice is stored in `roamingSettings` and overrides this.              |
 | `SUBJECT`                    | string    | `Cisco Secure Email submission – {category}: {subject}` | Subject of the report mail. Placeholders: `{category}` (label in the active language), `{subject}` (original subject, shortened to 120 characters), `{sender}` (original sender address), `{reporter}` (reporting user). |
 | `REPORT_DETAILS`             | boolean   | `true`                                             | Append a `--- Report details ---` block to the body: category, Cisco address, reporter, sent-as mailbox, original subject/sender/date, Message-ID, client, add-in version. Cisco ignores the body; the SOC copy and SIEMs can parse it. |
@@ -44,6 +45,25 @@ Set by the administrator in `config.js`; nothing here is visible or changeable i
 What the SOC receives is the same mail Cisco receives: subject with category and original
 subject, the details block, and the original message as a `.raw.eml` attachment – enough to
 open the original, correlate it with mail-flow logs by Message-ID, and follow the case in Talos.
+
+## Shared mailboxes
+
+No setting switches shared-mailbox support on. The manifest declares it
+(`SupportsSharedFolders`), and the pane recognises by itself that a mail is not in the user's
+own mailbox. What an administrator decides is which Graph permission to grant and whether such
+mails are moved.
+
+| For a mail in a shared mailbox                                         | Graph call                                   | Delegated permission                                                                 |
+| ---------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| The report is sent – from the reporting user's own mailbox             | `POST /me/sendMail`                          | `Mail.Send`, as for every report                                                     |
+| The mail is moved to Junk Email or the Inbox of the shared mailbox     | `POST /users/{mailbox}/messages/{id}/move`   | `Mail.ReadWrite.Shared`                                                              |
+| Only if Outlook cannot hand over the mail as a file: its MIME content is read | `GET /users/{mailbox}/messages/{id}/$value` | `Mail.ReadWrite.Shared`, or `Mail.Read.Shared` when `MOVE_IN_SHARED_MAILBOX` is `false` |
+
+The user also needs access to the mailbox itself – Full Access for a shared mailbox. Without
+the `*.Shared` permission the report is still sent whenever Outlook can supply the mail as a
+file; the mail then stays where it is and the log says why. The details block of such a report
+has one extra line, `Shared mailbox: <address>`; `Reported by` remains the user. Setup steps:
+`docs/DEPLOYMENT.md`, "Shared mailboxes".
 
 
 ## Categories
@@ -113,6 +133,12 @@ SOC_SHOW_IN_STATUS: true,
 ```javascript
 SEND_AS: "soc@contoso.com",        // shared mailbox; users need Send As; app needs Mail.Send.Shared
 SOC_ADDRESSES: ["soc@contoso.com"],  // optional – the SOC also gets its own copy
+```
+
+**Shared mailboxes: report the mail, but leave it for the team to handle:**
+
+```javascript
+MOVE_IN_SHARED_MAILBOX: false,
 ```
 
 **Shared multi-tenant app (one registration for every customer, as Cisco's add-in does):**

@@ -96,6 +96,8 @@ I kun giver admin consent.
    - `Mail.Send` – sende rapporten på brugerens vegne
    - `Mail.ReadWrite` – flytte mailen til Uønsket mail / Indbakke (kan udelades, hvis
      `MOVE_AFTER_REPORT` sættes til `false`)
+   - `Mail.ReadWrite.Shared` – læse og flytte mails i delte postkasser (kun nødvendig, hvis
+     brugerne skal kunne rapportere fra delte postkasser)
 5. Klik **Grant admin consent for \<organisation\>**, så brugerne ikke selv skal godkende.
 
 `brk-multihub://…`-adressen fortæller Microsoft Identity Platform, at add-in'et må få tokens
@@ -124,6 +126,20 @@ på den (Exchange admin center → postkassen → *Delegering*; *Send på vegne 
 mailen markeres "på vegne af") og at Entra-appen har rettigheden
 `Mail.Send.Shared` i stedet for `Mail.Send` med admin consent. Reserven *Ny mail* sender altid
 fra brugerens egen postkasse.
+
+**Delte postkasser (valgfrit):** Brugerne kan også rapportere mails, de læser i en delt
+postkasse (support@, info@ …). Manifestet er allerede sat op til det. Det kræver, at Entra-appen
+får rettigheden `Mail.ReadWrite.Shared` med admin consent, at brugeren har fuld adgang til den
+delte postkasse, og at tilføjelsesprogrammet udrulles til brugerne – ikke til den delte
+postkasse. Ruden viser *Delt postkasse: …* under den valgte mail. Rapporten sendes fra brugerens
+egen postkasse, og mailen flyttes til Uønsket mail / Indbakke i den delte postkasse, altså for
+alle, der bruger den; `MOVE_IN_SHARED_MAILBOX: false` rapporterer uden at flytte. Understøttes i
+Outlook på nettet, nyt Outlook til Windows, klassisk Outlook til Windows version 2304 eller
+nyere og Outlook til Mac 16.47 eller nyere. En delt postkasse, der er skjult i adresselisten,
+giver ikke tilføjelsesprogrammer nogen mail at arbejde med (Microsoft-begrænsning). Fra version
+1.4.0 beder manifestet om tilladelsesniveauet *læse/skrive postkasse* – det samme som Ciscos
+eget manifest – fordi Microsoft kræver det for delte postkasser. Opdatering fra en tidligere
+version kræver derfor, at det nye manifest uploades, og at tilladelserne accepteres igen.
 
 `LANGUAGE: "auto"` giver dansk til brugere med dansk Outlook, engelsk/svensk til de øvrige.
 `LANGUAGE: "da"` giver dansk til alle. Sprogvælgeren i ruden kan slås fra med
@@ -176,6 +192,9 @@ webstedet – Outlook henter altid den seneste version derfra.
 | Rapporten sendes, men mailen kunne ikke flyttes                            | `Mail.ReadWrite` mangler eller er ikke godkendt. Giv rettigheden, eller sæt `MOVE_AFTER_REPORT: false`.                                                                              |
 | Store mails åbner altid en ny mail                                         | Forventet over 3 MB (`MAX_GRAPH_ATTACHMENT_BYTES`). Microsoft Graph afviser større vedhæftninger i `sendMail`.                                                                        |
 | Knappen *Rapportér til Cisco* vises ikke                                   | Udrulningen er ikke slået igennem endnu (op til 24 t), læseruden er slået fra i Outlook, eller manifestet er ikke tildelt brugeren.                                                    |
+| Fejlen *Rapportering fra en delt postkasse kræver rettigheden …*           | Entra-appen mangler `Mail.ReadWrite.Shared`, eller admin consent er ikke givet igen efter tilføjelsen. Se afsnittet om delte postkasser under trin 3.                               |
+| Rapport fra en delt postkasse sendes, men mailen bliver liggende            | `Mail.ReadWrite.Shared` mangler, brugeren har ikke fuld adgang til postkassen, eller `MOVE_IN_SHARED_MAILBOX` er `false`. *Teknisk log* viser årsagen.                             |
+| Ruden siger *Ingen mail valgt* på en mail i en delt postkasse               | Postkassen er skjult i adresselisten, eller brugeren er logget direkte ind i den delte postkasse med dens egen adgangskode. Åbn postkassen via brugerens egen konto.              |
 | Ruden er på engelsk, selv om Outlook er dansk                              | Brugeren har valgt et sprog i ruden (vælg *Automatisk* igen), eller `LANGUAGE` i `config.js` er sat fast. *Teknisk log* viser linjen *Language* med årsagen.                            |
 | Ruden er tom / fejl om `Office is not defined`                             | `https://appsforoffice.microsoft.com` er blokeret af proxy/CSP.                                                                                                                       |
 | Ny mail åbnes uden vedhæftning                                             | Mailen er en kladde eller endnu ikke gemt på serveren. Rapportér kun modtagne mails.                                                                                                  |
@@ -185,6 +204,7 @@ Den engelske fejlfindingsvejledning (`docs/TROUBLESHOOTING.md`) er mere udførli
 
 ## Forskelle i forhold til Ciscos eget add-in
 
+- Virker også i delte postkasser. Ciscos eget add-in kan ikke rapportere mails derfra.
 - Simulerede phishing-mails fra *Cisco Secure Awareness* håndteres ikke særskilt – de
   rapporteres som almindelig phishing.
 - Der er seks kategorier (Ciscos add-in har tre: spam/phish/virus, legitim, marketing). Skjul dem,

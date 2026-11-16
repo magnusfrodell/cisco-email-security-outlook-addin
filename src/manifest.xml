@@ -18,6 +18,7 @@
 <!--
   Cisco Email Security Reporter – Outlook add-in manifest.
   Strings: en-US default with da-DK and sv-SE overrides (Outlook picks the user's language).
+  Shared mailboxes: enabled with SupportsSharedFolders + ReadWriteMailbox (docs/DEPLOYMENT.md).
   Replace addin.example.com with the HTTPS host where src/ is published:
     scripts/set-host.sh addin.contoso.com
 -->
@@ -29,7 +30,7 @@
   xsi:type="MailApp">
 
   <Id>8cec0077-122f-4b5b-a7ec-b779f92668c7</Id>
-  <Version>1.3.0.0</Version>
+  <Version>1.4.0.0</Version>
   <ProviderName>IT department</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Cisco Email Security Reporter"/>
@@ -65,7 +66,9 @@
     </Form>
   </FormSettings>
 
-  <Permissions>ReadWriteItem</Permissions>
+  <!-- ReadWriteMailbox is what Microsoft requires for Graph operations on items in shared
+       mailboxes and shared folders (see SupportsSharedFolders below). -->
+  <Permissions>ReadWriteMailbox</Permissions>
 
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
@@ -85,6 +88,8 @@
       <Hosts>
         <Host xsi:type="MailHost">
           <DesktopFormFactor>
+            <!-- Makes the add-in available on messages in shared mailboxes and shared folders. -->
+            <SupportsSharedFolders>true</SupportsSharedFolders>
             <FunctionFile resid="Taskpane.Url"/>
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">

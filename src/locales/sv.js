@@ -55,6 +55,7 @@ window.REPORTER_LOCALES.sv = {
     selectMailHint: "Välj ett mejl i listan för att rapportera det.",
     noSubject: "(utan ämne)",
     fromPrefix: "Från: ",
+    sharedMailbox: "Delad brevlåda: {address}",
 
     missedHelp: "Mejlet ligger i inkorgen men borde ha stoppats.",
     falsePositiveHelp: "Mejlet markerades felaktigt som skräppost eller marknadsföring.",
@@ -100,6 +101,8 @@ window.REPORTER_LOCALES.sv = {
     errConsent: "Det saknas medgivande för att skicka mejl för din räkning. Be er administratör att godkänna tillägget.",
     errGraphDenied: "Outlook nekades av Microsoft Graph ({status}). Kontrollera att behörigheterna Mail.Send och Mail.ReadWrite är beviljade.",
     errGetFile: "Mejlet kunde inte hämtas som fil i den här Outlook-versionen.",
+    errSharedConsent: "Rapportering från en delad brevlåda kräver behörigheten {permission}, som inte är godkänd. Be er administratör att bevilja tillägget den.",
+    errSharedAccess: "Mejlet kunde inte hämtas från den delade brevlådan {mailbox} ({status}). Du behöver fullständig åtkomst till brevlådan.",
     errNotOutlook: "Det här tillägget måste öppnas från Outlook.",
     errStart: "Tillägget kunde inte starta: "
   }

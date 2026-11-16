@@ -72,7 +72,7 @@ flowchart TD
 
 | Mode        | What happens                                                                                                                                                    | Needs                                                                     |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **graph**   | EML fetched with `getAsFileAsync`, sent with Graph `POST /me/sendMail`, message moved with `POST /me/messages/{id}/move`. No user interaction beyond the click. | `CLIENT_ID`, Entra app registration, Mailbox 1.14, NestedAppAuth 1.1      |
+| **graph**   | EML fetched with `getAsFileAsync`, sent with Graph `POST /me/sendMail`, message moved with `POST /me/messages/{id}/move`. No user interaction beyond the click. A mail in a shared mailbox takes the `/users/{mailbox}` paths of section 2.3. | `CLIENT_ID`, Entra app registration, Mailbox 1.14, NestedAppAuth 1.1      |
 | **compose** | `displayNewMessageForm(Async)` opens a new message to Cisco's address with the selected item attached; the user presses Send. The default only with `SEND_MODE: "compose"`; otherwise the fallback. | Mailbox 1.6 (1.9 for the async variant with error reporting) |
 | **none**    | Neither is possible (or the fallback is disabled): error notice, buttons disabled.                                                                              |                                                                           |
 
@@ -81,8 +81,9 @@ is not `false` and Mailbox 1.6 is available):
 
 - the EML is larger than `MAX_GRAPH_ATTACHMENT_BYTES` (default 3 MB, the Graph `sendMail`
   limit for inline attachments) → compose is used automatically and the status explains why;
-- token acquisition, `getAsFileAsync` or the Graph call fails → the status shows the error and a
-  **Send manually instead** button that runs the compose flow for the same category.
+- token acquisition fails, the EML cannot be obtained (neither from `getAsFileAsync` nor
+  through Graph) or `sendMail` is refused → the status shows the error and a **Send manually
+  instead** button that runs the compose flow for the same category.
 
 With the fallback disabled both cases end in an error status and no message is opened.
 
@@ -142,6 +143,73 @@ sequenceDiagram
     OL-->>T: mail with original as message/rfc822
 ```
 
+### 2.3 Shared mailboxes and shared folders
+
+A mail in a shared mailbox, or in a folder another user shares, is not in the signed-in user's
+mailbox, so nothing about it can be done through `/me`: `GET /me/messages/{id}` answers 404 for
+it. (That is why Cisco's add-in, whose Graph paths are fixed to `/me`, ends in *Submission
+Unsuccessful* there even after the manifest and the permissions have been extended – see
+`docs/FAQ.md`.)
+
+The pane therefore asks Office.js where the item lives. `loadSharedProperties()` calls
+`item.getSharedPropertiesAsync()` whenever the selection changes. A successful answer carries
+the owner's address, a client-specific `targetMailbox` value and the user's permissions; a
+failed answer means the item is in the user's own mailbox. `report()` waits for that answer
+before it starts. Everything that touches the *mail* then goes through the mailbox that holds
+it, while the *report* still leaves from the user's own mailbox.
+
+| Step                 | Own mailbox                                                  | Shared mailbox or folder                                                                  |
+| -------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Token for the report | `Mail.Send` (+ `Mail.ReadWrite` when a move follows)         | `Mail.Send`                                                                               |
+| EML                  | `getAsFileAsync`; if it fails `GET /me/messages/{id}/$value` | `getAsFileAsync`; if it fails `GET /users/{mailbox}/messages/{id}/$value`                 |
+| Send                 | `POST /me/sendMail`                                          | `POST /me/sendMail`                                                                       |
+| Token for the mail   | the report token                                             | `Mail.ReadWrite.Shared` (`Mail.Read.Shared` when nothing is moved), silently, on first use |
+| Move                 | `POST /me/messages/{id}/move`                                | `POST /users/{mailbox}/messages/{id}/move`, unless `MOVE_IN_SHARED_MAILBOX` is `false`     |
+
+`{mailbox}` is the owner's address first and the `targetMailbox` value second, should Graph not
+find the first (`withItemMailbox()`). A 401 or 403 ends the attempts, because another identifier
+cannot fix a permission problem.
+
+The token for the mail is requested without ever opening a sign-in window. If the tenant has
+not consented to the `*.Shared` scope the consequences stay small: when Outlook could supply
+the EML, the report is sent and only the move is skipped; when the EML had to come from Graph,
+the report fails with a message that names the missing permission.
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant P as Task pane
+    participant O as Office.js
+    participant MS as MSAL (NAA)
+    participant G as Graph
+    participant T as Talos
+
+    U->>P: select a mail in support@contoso.com
+    P->>O: item.getSharedPropertiesAsync()
+    O-->>P: owner, targetMailbox, delegatePermissions
+    U->>P: click category
+    P->>MS: acquireTokenSilent(Mail.Send)
+    MS-->>P: token A
+    P->>O: item.getAsFileAsync()
+    alt Outlook supplies the EML
+        O-->>P: base64 EML
+    else not available for this item
+        P->>MS: acquireTokenSilent(Mail.ReadWrite.Shared), no sign-in window
+        MS-->>P: token B
+        P->>G: GET /users/{mailbox}/messages/{id}/$value with token B
+        G-->>P: MIME content
+    end
+    P->>G: POST /me/sendMail with token A
+    G-->>T: report mail from the user's own mailbox
+    opt token B not acquired yet
+        P->>MS: acquireTokenSilent(Mail.ReadWrite.Shared), no sign-in window
+        MS-->>P: token B
+    end
+    P->>G: POST /users/{mailbox}/messages/{id}/move with token B
+    G-->>P: 201 Created
+    P-->>U: status "Rapporteret som spam … flyttet til Uønsket mail"
+```
+
 ## 3. The report message
 
 Both modes produce the same kind of message. In graph mode the payload is built explicitly:
@@ -175,13 +243,15 @@ requested with the `Mail.Send.Shared` scope; Exchange then sends it from that ma
 (*Send As*) or on its behalf (*Send on Behalf*), and Talos attributes the submission to that
 address. Sending through `/me` rather than `/users/{mailbox}` avoids needing Full Access on the
 shared mailbox and keeps the "keep a copy" behaviour in the user's own Sent Items. The move step
-acts on the user's own mailbox (`/me/messages/{id}/move`).
+acts on the mailbox that holds the mail: `/me/messages/{id}/move`, or `/users/{mailbox}/…` for a
+mail in a shared mailbox (section 2.3).
 
 **SOC copy.** `SOC_ADDRESSES` are added as Cc (or Bcc with `SOC_COPY_MODE: "bcc"`) in both
 modes, so the SOC receives exactly what Cisco receives. The body's details block
 (`REPORT_DETAILS`) gives it category, Cisco address, reporting user, sent-as mailbox, original
 subject, sender, date and Message-ID in `Key: value` lines – stable English keys so a SIEM or a
-ticketing rule can parse them – followed by the client and add-in version.
+ticketing rule can parse them – followed by the client and add-in version. A mail reported from a shared mailbox adds one
+line, `Shared mailbox: <address>`, after `Sent as`; reports from the own mailbox are unchanged.
 
 In compose mode Outlook builds the message itself from an *item attachment*; when the message
 leaves Exchange the attached item is emitted as a `message/rfc822` MIME part, which is the format
@@ -240,7 +310,10 @@ var state = {
   language: null,       // active locale key, e.g. "da"
   msalApp: null,        // lazily created NestablePublicClientApplication
   busy: false,          // a report is in progress; buttons are disabled
-  item: null            // Office.context.mailbox.item at last refresh, or null
+  item: null,           // Office.context.mailbox.item at last refresh, or null
+  shared: null,         // { owner, targetMailbox, permissions } for a mail outside the own mailbox
+  sharedReady: null,    // promise settled once getSharedPropertiesAsync has answered for the item
+  sharedSeq: 0          // discards a late answer that belongs to a previously selected mail
 };
 ```
 
@@ -285,7 +358,8 @@ User-facing status text always goes through `t()`.
 | `updateModeChip()`       | Header chip text from `state.mode`/`state.modeDetected` in the active language.                                       |
 | `renderNotice()`         | Shows or hides the persistent notice under the header from `state.notice` (kind, string key, localized reason). Re-run on every language switch. |
 | `renderCategories()`     | Clears both group containers, sets the group titles from the locale, and builds one `<button class="btn-cat" data-id=…>` per enabled category with the localized label and hint. Re-run on every language switch. |
-| `refreshItem()`          | Reads `Office.context.mailbox.item`, shows subject/sender or the "no mail selected" state. Bound to `ItemChanged` for pinned panes. |
+| `refreshItem()`          | Reads `Office.context.mailbox.item`, shows subject/sender or the "no mail selected" state, and starts `loadSharedProperties()` for the item. Bound to `ItemChanged` for pinned panes. |
+| `renderShared()`         | Shows or hides the *Shared mailbox: …* line under the selected mail from `state.shared`. |
 
 ### 5.4 Settings
 
@@ -304,10 +378,13 @@ hides the whole panel when neither row is visible.
 | `reportDetails(cat)` / `bodyPlain(cat)` / `bodyHtml(cat)` | The `--- Report details ---` block and the full body in text (graph) or HTML (compose) form.                                                                                                                              |
 | `reportViaCompose(cat, reason)` | Builds the `displayNewMessageForm` parameters (to, cc, subject, HTML body, one `item` attachment with the current `itemId`). Uses the async variant when Mailbox 1.9 is available so failures surface; otherwise the sync call. Returns a promise.                       |
 | `getEmlBase64()`             | Promise wrapper around `item.getAsFileAsync`. Resolves with the base64 EML.                                                                                                                                                                                          |
-| `getToken(scopes)`           | Creates the MSAL nestable public client on first use (`clientId`, `authority`, `localStorage` cache), then `acquireTokenSilent`; on `InteractionRequiredAuthError` falls back to `acquireTokenPopup`. Any other error propagates.                                    |
+| `getToken(scopes, silentOnly)` | Creates the MSAL nestable public client on first use (`clientId`, `authority`, `localStorage` cache), then `acquireTokenSilent`; on `InteractionRequiredAuthError` falls back to `acquireTokenPopup` – unless `silentOnly` is set, in which case an error with `consentRequired = true` is thrown and no window opens. Any other error propagates. |
 | `graphPost(path, token, body)` | `fetch` POST to `https://graph.microsoft.com/v1.0` with bearer token. Non-2xx responses become an `Error` with `.status` and the first 300 characters of the body.                                                                                                     |
-| `moveItem(token, folder)`    | Converts the EWS item id with `convertToRestId(…, v2_0)` and posts to `/me/messages/{id}/move` with `destinationId` `junkemail` or `inbox`.                                                                                                                           |
-| `reportViaGraph(cat)`        | Orchestrates graph mode: scopes → token → EML → size check (returns `{fallback:true, reason}` if too large) → `sendMail` → optional move → success status. Returns `{fallback:false}` on success.                                                                     |
+| `graphGetBase64(path, token)` | `fetch` GET that returns the response bytes Base64-encoded – the MIME content of a message (`…/$value`). Errors as in `graphPost`; both use `graphFailure()`. |
+| `withItemMailbox(shared, call)` | Runs a Graph call against the mailbox that holds the mail: `/me`, or `/users/{mailbox}` for a shared item – owner address first, `targetMailbox` second, stopping at a 401/403. |
+| `fetchEml(shared, mailboxToken)` | The EML as Base64: `getEmlBase64()` first; if that fails, the MIME content through Graph from the mail's mailbox. For the own mailbox a failed Graph read re-throws the original `getAsFileAsync` error; for a shared one the Graph error is tagged with the mailbox so that `friendlyError()` can explain it. |
+| `moveItem(token, folder, shared)` | Converts the item id with `convertToRestId(…, v2_0)` (`restItemId()`) and posts to `…/messages/{id}/move` with `destinationId` `junkemail` or `inbox` – under `/me`, or under the shared mailbox. |
+| `reportViaGraph(cat)`        | Orchestrates graph mode: report token → EML (`fetchEml`) → size check (returns `{fallback:true, reason}` if too large) → `sendMail` → optional move → success status. Returns `{fallback:false}` on success. For a mail in a shared mailbox the token for the mail (`*.Shared`) is acquired silently on first use and serves both the read and the move. |
 
 ### 5.6 Orchestration and errors
 
@@ -315,7 +392,7 @@ hides the whole panel when neither row is visible.
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `report(cat)`       | Entry point from a category button. Guards against re-entry (`state.busy`), shows the "sending" status, dispatches to the active mode, handles the graph→compose fallback, and always re-enables the buttons in `finally`.                                  |
 | `runGuarded(fn)`    | Same busy/finally discipline for secondary actions (the **Send manually instead** button).                                                                                                                                                                 |
-| `friendlyError(e)`  | Maps common failures to user text: consent/`AADSTS65001` → `errConsent`; Graph 401/403 → `errGraphDenied`; `getAsFileAsync` failures → `errGetFile`; anything else → the raw `errText`.                                                                    |
+| `friendlyError(e)`  | Maps common failures to user text: a shared-mailbox read without consent → `errSharedConsent` (names the permission); a shared-mailbox read refused by Graph → `errSharedAccess` (mailbox and status); consent/`AADSTS65001` → `errConsent`; `ErrorSendAsDenied` and Graph 401/403 → `errGraphDenied`; `getAsFileAsync` failures → `errGetFile`; anything else → the raw `errText`. |
 
 Error strategy in one sentence: every failure ends in a visible status with a way forward,
 and the technical detail is in the log, never lost.
@@ -330,22 +407,32 @@ and the technical detail is in the log, never lost.
 4. `initSettings()` – keep-copy checkbox and language selector;
 5. `detectMode()` – applies `SEND_MODE`/`COMPOSE_FALLBACK`, logs the reasons if the configured
    mode is not available, sets the notice and the settings visibility;
-6. `refreshItem()`;
+6. `refreshItem()`, which also starts the shared-mailbox lookup for the selected mail;
 7. register the `ItemChanged` handler (Mailbox 1.5+) so a pinned pane follows the selection.
+
+### 5.8 Shared mailboxes
+
+| Function                      | Purpose                                                                                                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loadSharedProperties(item)`  | Calls `item.getSharedPropertiesAsync()` and sets `state.shared` – or `null` when the answer is "failed", empty or missing after 4 seconds. A sequence counter discards an answer for a mail that is no longer selected. The promise in `state.sharedReady` never rejects. |
+| `sharedLookupDone()`          | The promise `report()` awaits before it starts, so that a click right after a selection change cannot outrun the lookup.                                                                                                        |
+| `sharedLabel(shared)`         | The address shown, logged and written to the report details: the owner, or `targetMailbox` when the client gives no owner.                                                                                                      |
+| `sharedMailboxIds(shared)`    | The de-duplicated Graph user segments to try, in order.                                                                                                                                                                         |
 
 ## 6. `manifest.xml` reference
 
 | Element                                   | Value / purpose                                                                                                  |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `Id`                                      | `8cec0077-122f-4b5b-a7ec-b779f92668c7`. Generate a new GUID if you fork the add-in for another organisation.     |
-| `Version`                                 | Four-part, e.g. `1.1.0.0`. Must be bumped for the admin center to accept an update.                              |
+| `Version`                                 | Four-part, e.g. `1.4.0.0`. Must be bumped for the admin center to accept an update.                              |
 | `DefaultLocale`                           | `en-US`. `Description`, group label, button label and tooltip carry `Override` elements for `da-DK` and `sv-SE`; Outlook picks the user's language. `DisplayName` is the same in all languages. See `docs/LOCALIZATION.md`. |
 | `AppDomains`                              | The add-in host and `https://login.microsoftonline.com` (interactive MSAL fallback).                             |
 | `Requirements` / `bt:Sets`                | Mailbox 1.6 minimum – `displayNewMessageForm` is the floor. Graph mode is detected at runtime, not in the manifest. |
 | `FormSettings` → `SourceLocation`         | `taskpane.html`, used by clients that ignore `VersionOverrides` (none in practice, but required by the schema).  |
-| `Permissions`                             | `ReadWriteItem`.                                                                                                 |
+| `Permissions`                             | `ReadWriteMailbox` – the level Microsoft requires for add-ins that act on items in shared mailboxes and shared folders. The pane itself calls nothing that needs more than `ReadWriteItem`. |
 | `Rule`                                    | `ItemIs Message Read` – the button only appears when reading a message.                                          |
 | `VersionOverrides` 1.1 → `MessageReadCommandSurface` | One group (*Email security* / *Mailsikkerhed* / *E-postsäkerhet*) with one `ShowTaskpane` button (*Report to Cisco* / *Rapportér til Cisco* / *Rapportera till Cisco*), `SupportsPinning` true. |
+| `DesktopFormFactor` → `SupportsSharedFolders` | `true` – Outlook also offers the add-in on mails in shared mailboxes and in folders shared with the user. Must be the first child of `DesktopFormFactor`. Remove it (and set `ReadWriteItem`) to opt out. |
 | `Resources`                               | Icons 16/32/80, task pane URL, group label, button label, tooltip – the strings with locale overrides.            |
 
 The manifest is validated in CI with Microsoft's `office-addin-manifest validate`, which also
@@ -365,12 +452,30 @@ reports the supported platforms (Outlook on Windows, Mac and web).
 Requirement sets used: Mailbox 1.6 (`displayNewMessageForm`), 1.5 (`ItemChanged`, pinning),
 1.9 (`displayNewMessageFormAsync`), 1.14 (`getAsFileAsync`), NestedAppAuth 1.1 (MSAL brokering).
 
+Mails in shared mailboxes and shared folders (`SupportsSharedFolders` and
+`getSharedPropertiesAsync`: Mailbox 1.8 for shared folders, 1.13 for shared mailboxes), with
+Exchange Online:
+
+| Client                                | Mail in a shared mailbox or shared folder                                               |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| Outlook on the web                    | yes                                                                                     |
+| New Outlook on Windows                | yes                                                                                     |
+| Classic Outlook on Windows (M365)     | shared folders from Version 1910, shared mailboxes from Version 2304 (Build 16327.20248) |
+| Outlook on Mac (M365)                 | Version 16.47 or later                                                                  |
+| Outlook on iOS / Android              | no                                                                                      |
+
+The add-in has to be installed in the user's own mailbox; Outlook then offers it in the shared
+ones. A shared mailbox hidden from the address list, or opened by signing in with its own
+password, hands add-ins no item at all.
+
 ## 8. Testing
 
 `tests/office-stub.js` provides just enough of the `Office` global to render the pane in a
 normal browser: requirement-set answers (Mailbox 1.15, no NestedAppAuth → compose mode),
 `displayLanguage` `da-DK`, a fake selected message, `roamingSettings`,
-`displayNewMessageForm(Async)` that records its arguments, and an `ItemChanged` hook.
+`displayNewMessageForm(Async)` that records its arguments, and an `ItemChanged` hook. The
+message has `getAsFileAsync` and `getSharedPropertiesAsync`, and a test decides through
+`window.__stub` what they answer: own mailbox or shared mailbox, EML available or not.
 
 `tests/smoke_test.py` copies `src/` to a temp directory, swaps the hosted `office.js` for the
 stub, and drives the pane with Playwright: automatic language resolution (da-DK → Danish), one
@@ -378,15 +483,22 @@ button per enabled category, the language selector (switch to Swedish and Englis
 automatic, choice persisted), the compose flow addressed to the right Cisco address with an
 item attachment and localized subject/body, status rendering, button enable/disable on selection
 change, and zero JavaScript errors. A second scenario simulates a fully configured deployment
-(`CLIENT_ID` set, NestedAppAuth available) and checks that graph mode is selected without a
-warning. It can also write the screenshots used in the documentation
-(`--screenshots docs/images`).
+(`CLIENT_ID` set, NestedAppAuth available), checks that graph mode is selected without a
+warning, and then runs automatic send against a mocked MSAL client and a mocked `fetch`. The
+mocks record which tokens are requested and which Graph calls are made with which token and
+payload, for: a mail in the own mailbox with and without a working `getAsFileAsync`; a mail in
+a shared mailbox with and without it; a missing `*.Shared` consent; a `targetMailbox` that
+differs from the owner address; a shared mailbox the user cannot read;
+`MOVE_IN_SHARED_MAILBOX: false`; and the own mailbox again afterwards. It can also write the
+screenshots used in the documentation (`--screenshots docs/images`).
 
 CI (`.github/workflows/ci.yml`) runs the syntax check, the manifest validator, a version
 consistency check and the smoke test on every push and pull request.
 
-Graph mode cannot be exercised without a real Outlook and tenant; see
-`docs/DEPLOYMENT.md` step 4 for the sideload procedure.
+The mocks prove which calls the pane makes and in which order – not that Outlook and
+Microsoft 365 answer as documented. Nested App Authentication, `getSharedPropertiesAsync` and
+the Graph permissions can only be confirmed in a real tenant; see `docs/DEPLOYMENT.md` step 4
+for the sideload procedure.
 
 ## 9. Design decisions
 
@@ -399,6 +511,11 @@ Graph mode cannot be exercised without a real Outlook and tenant; see
   surfaced as a warning rather than silently degraded. The compose path stays because it needs
   no app registration and works on every supported client – as the fallback, or as the only
   mode for a zero-infrastructure deployment.
+- **Report from the user, act on the mailbox.** For a mail in a shared mailbox only the steps
+  that touch the mail itself use the shared mailbox and a `*.Shared` scope; the report is sent
+  with the same `/me/sendMail` call and the same `Mail.Send` scope as always. Office.js is
+  asked for the EML first, so wherever Outlook cooperates the extra permission is needed for
+  the move and for nothing else – and a tenant that has not granted it still gets its reports.
 - **Self-hosted MSAL.** No CDN dependency, no CSP surprises, and the version is pinned by
   what is in the repository.
 - **One locale file per language.** Translating is copying a file; the JavaScript stays

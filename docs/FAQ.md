@@ -39,6 +39,35 @@ This add-in mirrors the Graph path and the message format, and uses Cisco's publ
 addresses (`spam@`, `phish@`, `virus@`, `ads@`, `ham@`, `not_ads@access.ironport.com`) instead
 of the `addin_*` ones, which are reserved for Cisco's add-in.
 
+## Why does Cisco's add-in fail in shared mailboxes, even with `SupportsSharedFolders` and the `*.Shared` permissions added?
+
+Because showing the add-in in a shared mailbox and being able to act on a mail there are two
+different things. Adding `<SupportsSharedFolders>true</SupportsSharedFolders>` to a copy of the
+manifest makes Outlook offer the add-in on mails in shared mailboxes, and granting
+`Mail.ReadWrite.Shared` and `Mail.Send.Shared` to Cisco's Enterprise Application gives its
+token the right to read such mails. But the code behind the button still looks for the mail in
+the wrong place. It calls `GET /me/messages/{id}/$value`, and afterwards
+`POST /me/messages/{id}/move`, with paths that are fixed to `/me` – the signed-in user's own
+mailbox. A mail in a shared mailbox does not exist there, Graph answers 404, and the pane shows
+*Submission Unsuccessful*. The current bundle never calls `getSharedPropertiesAsync`, so it has
+no way of knowing that the mail lives somewhere else. For the same reason the modified add-in
+keeps working in the personal mailbox: there, `/me` is right.
+
+No manifest or permission change can fix that from the outside. It takes a change in the pane's
+code, which is served from `res.cisco.com`.
+
+## Does this add-in work in shared mailboxes?
+
+Yes, from 1.4.0. The pane asks Office.js whether the selected mail is in a shared mailbox
+(`getSharedPropertiesAsync`), reads and moves it through `/users/{mailbox}` instead of `/me`,
+and still sends the report from the reporting user's own mailbox. It needs the delegated
+permission `Mail.ReadWrite.Shared` and Full Access for the user on the mailbox; the steps are in
+`docs/DEPLOYMENT.md` ("Shared mailboxes") and the mechanics in `docs/ARCHITECTURE.md` § 2.3.
+
+It is also the reason the manifest asks for `ReadWriteMailbox` from 1.4.0: Microsoft requires
+that level for add-ins that act on items in shared mailboxes. Here it has nothing to do with
+EWS, which the add-in does not use.
+
 ## Can we keep Cisco's interaction model but avoid any Entra app?
 
 Not with a task-pane add-in. One click → submit + move with no outgoing mail shown requires

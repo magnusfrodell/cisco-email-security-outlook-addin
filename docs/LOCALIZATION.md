@@ -84,6 +84,7 @@ Placeholders in braces are replaced at runtime; keep them in the translation.
 | `selectMailHint`     |                         | Sender line when nothing is selected                      |
 | `noSubject`          |                         | Subject line for a mail without subject                   |
 | `fromPrefix`         |                         | Prefix before the sender ("From: ")                       |
+| `sharedMailbox`      | `{address}`             | Line under the selected mail when it is in a shared mailbox |
 | `missedHelp`         |                         | Help text under the "missed" group heading                |
 | `falsePositiveHelp`  |                         | Help text under the "false positive" group heading        |
 | `sentTo`             | `{address}`             | Tooltip on each category button                           |
@@ -117,6 +118,8 @@ Placeholders in braces are replaced at runtime; keep them in the translation.
 | `errConsent`         |                         | Consent / AADSTS65001 errors                               |
 | `errGraphDenied`     | `{status}`              | Graph 401 / 403                                            |
 | `errGetFile`         |                         | `getAsFileAsync` failure                                   |
+| `errSharedConsent`   | `{permission}`          | Mail in a shared mailbox, `*.Shared` permission not consented |
+| `errSharedAccess`    | `{mailbox}` `{status}`  | Mail in a shared mailbox could not be read through Graph   |
 | `errNotOutlook`      |                         | Pane opened outside Outlook                                |
 | `errStart`           |                         | Prefix for unexpected startup errors                      |
 

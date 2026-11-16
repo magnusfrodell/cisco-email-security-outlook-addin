@@ -32,6 +32,12 @@
  * too large for Graph, or on demand ("send manually instead") after a failed send.
  * With COMPOSE_FALLBACK false the pane shows an error instead of opening a new message.
  *
+ * Shared mailboxes and shared folders: the manifest declares <SupportsSharedFolders>, so the
+ * pane also opens on items the user reads in a mailbox that is not their own. Such an item is
+ * recognised with item.getSharedPropertiesAsync(); it does not exist under /me, so reading
+ * its MIME content and moving it go through /users/{mailbox} with a *.Shared Graph scope.
+ * The report itself is still sent from the user's own mailbox (/me/sendMail).
+ *
  * Languages: every user-facing text comes from window.REPORTER_LOCALES[<lang>]
  * (src/locales/*.js). The active language is resolved in resolveLanguage(). This file
  * contains no language-dependent text; log messages are English by design.
@@ -39,12 +45,13 @@
 (function () {
   "use strict";
 
-  var VERSION = "1.3.0";
+  var VERSION = "1.4.0";
   var CFG = window.REPORTER_CONFIG || {};
   var LOCALES = window.REPORTER_LOCALES || {};
   var LOG_PREFIX = "[CiscoReporter]";
   var GRAPH = "https://graph.microsoft.com/v1.0";
   var AUTO = "auto";
+  var SHARED_LOOKUP_TIMEOUT_MS = 4000;
 
   var L = {};   // active locale object
   var S = {};   // active locale strings
@@ -57,7 +64,10 @@
     language: null,
     msalApp: null,
     busy: false,
-    item: null
+    item: null,
+    shared: null,         // { owner, targetMailbox, permissions } when the item is in a shared mailbox or folder
+    sharedReady: null,    // promise that settles when the shared-properties lookup for the item is done
+    sharedSeq: 0          // discards a late lookup answer for a previously selected item
   };
 
   /* ------------------------------------------------------------------ */
@@ -321,14 +331,20 @@
       ["Category", labelOf(cat) + " (" + cat.id + ")"],
       ["Submitted to", cat.address],
       ["Reported by", reporterAddress()],
-      ["Sent as", (state.mode === "graph" && sendAs()) ? sendAs() : (reporterAddress() || "-")],
+      ["Sent as", (state.mode === "graph" && sendAs()) ? sendAs() : (reporterAddress() || "-")]
+    ];
+    if (state.shared) {
+      // Only present for items reported from a mailbox that is not the reporting user's own.
+      lines.push(["Shared mailbox", sharedLabel(state.shared)]);
+    }
+    lines = lines.concat([
       ["Original subject", item.subject || ""],
       ["Original sender", senderOf(item)],
       ["Original date", item.dateTimeCreated ? new Date(item.dateTimeCreated).toISOString() : ""],
       ["Message-ID", item.internetMessageId || ""],
       ["Client", clientInfo()],
       ["Add-in", "Cisco Email Security Reporter " + VERSION + " (" + state.mode + ")"]
-    ];
+    ]);
     return lines.map(function (l) { return l[0] + ": " + l[1]; }).join("\n");
   }
 
@@ -490,6 +506,7 @@
     var isMessage = !!item && item.itemType === Office.MailboxEnums.ItemType.Message;
     if (!isMessage) {
       state.item = null;
+      loadSharedProperties(null);
       $("mail-subject").textContent = t("noMailSelected");
       $("mail-from").textContent = t("selectMailHint");
       setButtonsEnabled(false);
@@ -505,6 +522,96 @@
     setButtonsEnabled(!state.busy);
     clearStatus();
     log("info", "Mail selected", { subject: item.subject, from: from.emailAddress, itemId: (item.itemId || "").slice(0, 24) + "…" });
+    loadSharedProperties(item);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Shared mailboxes and shared folders                                */
+  /* ------------------------------------------------------------------ */
+
+  /** The address shown and logged for a shared item: the owner, or the client's location value. */
+  function sharedLabel(shared) {
+    return shared.owner || shared.targetMailbox || "";
+  }
+
+  /**
+   * Graph user segments to try for a shared item. The owner's address comes first; the
+   * client-specific targetMailbox value is the second attempt when it differs.
+   */
+  function sharedMailboxIds(shared) {
+    var seen = {}, out = [];
+    [shared.owner, shared.targetMailbox].forEach(function (v) {
+      var key = String(v || "").toLowerCase();
+      if (key && !seen[key]) { seen[key] = true; out.push(String(v)); }
+    });
+    return out;
+  }
+
+  function renderShared() {
+    var el = $("mail-shared");
+    if (!el) { return; }
+    el.hidden = !state.shared;
+    el.textContent = state.shared ? t("sharedMailbox", { address: sharedLabel(state.shared) }) : "";
+  }
+
+  /**
+   * Find out whether the selected item lives in a shared mailbox or in a folder shared with
+   * the user. Office.js answers "failed" for an item in the user's own mailbox, so anything
+   * but a successful answer with an owner means "not shared". Sets state.shared and
+   * state.sharedReady; the promise always resolves and never rejects.
+   */
+  function loadSharedProperties(item) {
+    var seq = ++state.sharedSeq;
+    state.shared = null;
+    renderShared();
+
+    if (!item || typeof item.getSharedPropertiesAsync !== "function") {
+      state.sharedReady = Promise.resolve(null);
+      return state.sharedReady;
+    }
+
+    state.sharedReady = new Promise(function (resolve) {
+      var settled = false;
+      var timer = null;
+      var finish = function (value) {
+        if (settled) { return; }
+        settled = true;
+        if (timer) { clearTimeout(timer); }
+        if (seq !== state.sharedSeq) { resolve(null); return; }   // another item was selected meanwhile
+        state.shared = value;
+        renderShared();
+        resolve(value);
+      };
+      timer = setTimeout(function () {
+        log("warn", "getSharedPropertiesAsync did not answer – treating the item as not shared");
+        finish(null);
+      }, SHARED_LOOKUP_TIMEOUT_MS);
+
+      try {
+        item.getSharedPropertiesAsync(function (r) {
+          if (!r || r.status !== Office.AsyncResultStatus.Succeeded || !r.value) { finish(null); return; }
+          var owner = String(r.value.owner || "").trim();
+          var target = String(r.value.targetMailbox || "").trim();
+          if (!owner && !target) { finish(null); return; }
+          var shared = { owner: owner, targetMailbox: target, permissions: r.value.delegatePermissions };
+          if (seq === state.sharedSeq) {
+            log("info", "Item is in a shared mailbox or folder", {
+              owner: owner, targetMailbox: target, delegatePermissions: shared.permissions, user: reporterAddress()
+            });
+          }
+          finish(shared);
+        });
+      } catch (e) {
+        log("warn", "getSharedPropertiesAsync failed", errText(e));
+        finish(null);
+      }
+    });
+    return state.sharedReady;
+  }
+
+  /** Wait until the shared-properties lookup for the selected item has finished. */
+  function sharedLookupDone() {
+    return state.sharedReady || Promise.resolve(null);
   }
 
   /* ------------------------------------------------------------------ */
@@ -570,6 +677,9 @@
       }]
     };
     if (sendAs()) { log("warn", "SEND_AS is ignored in compose mode – the report is sent from the user's mailbox"); }
+    if (state.shared) {
+      log("warn", "Compose mode with an item from a shared mailbox – whether Outlook can attach it by item id depends on the client", sharedLabel(state.shared));
+    }
     log("info", "Opening new message (compose mode)", { to: cat.address, soc: soc, socMode: socMode(), reason: reason || null });
 
     var done = function () {
@@ -611,7 +721,11 @@
     });
   }
 
-  async function getToken(scopes) {
+  /**
+   * Acquire a Graph token for the scopes. silentOnly = true never opens a sign-in or consent
+   * window: if interaction would be needed, an error with consentRequired = true is thrown.
+   */
+  async function getToken(scopes, silentOnly) {
     if (!state.msalApp) {
       log("info", "Initialising MSAL (NAA)", { authority: CFG.AUTHORITY });
       state.msalApp = await msal.createNestablePublicClientApplication({
@@ -622,17 +736,32 @@
     var request = { scopes: scopes };
     try {
       var silent = await state.msalApp.acquireTokenSilent(request);
-      log("info", "Token acquired (silent)");
+      log("info", "Token acquired (silent)", { scopes: scopes });
       return silent.accessToken;
     } catch (e) {
       if (e instanceof msal.InteractionRequiredAuthError) {
+        if (silentOnly) {
+          log("warn", "Silent token failed and no sign-in window is opened for this step", { scopes: scopes, error: errText(e) });
+          var denied = new Error("Consent or sign-in required for " + scopes.join(", ") + " (" + errText(e) + ")");
+          denied.consentRequired = true;
+          denied.scopes = scopes;
+          throw denied;
+        }
         log("warn", "Silent token failed – trying interactive", errText(e));
         var popup = await state.msalApp.acquireTokenPopup(request);
-        log("info", "Token acquired (interactive)");
+        log("info", "Token acquired (interactive)", { scopes: scopes });
         return popup.accessToken;
       }
       throw e;
     }
+  }
+
+  async function graphFailure(path, res) {
+    var text = "";
+    try { text = await res.text(); } catch (e) { /* ignore */ }
+    var err = new Error("Graph " + path + " returned " + res.status + " " + text.slice(0, 300));
+    err.status = res.status;
+    return err;
   }
 
   async function graphPost(path, token, body) {
@@ -644,32 +773,123 @@
       },
       body: JSON.stringify(body)
     });
-    if (!res.ok) {
-      var text = "";
-      try { text = await res.text(); } catch (e) { /* ignore */ }
-      var err = new Error("Graph " + path + " returned " + res.status + " " + text.slice(0, 300));
-      err.status = res.status;
-      throw err;
-    }
+    if (!res.ok) { throw await graphFailure(path, res); }
     return res;
   }
 
-  async function moveItem(token, folder) {
-    var restId = Office.context.mailbox.convertToRestId(
+  function bytesToBase64(bytes) {
+    var binary = "", chunk = 0x8000;
+    for (var i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  /** GET a Graph resource as raw bytes, Base64-encoded – used for the MIME content of a message. */
+  async function graphGetBase64(path, token) {
+    var res = await fetch(GRAPH + path, {
+      method: "GET",
+      headers: { Authorization: "Bearer " + token }
+    });
+    if (!res.ok) { throw await graphFailure(path, res); }
+    return bytesToBase64(new Uint8Array(await res.arrayBuffer()));
+  }
+
+  function restItemId() {
+    return Office.context.mailbox.convertToRestId(
       state.item.itemId, Office.MailboxEnums.RestVersion.v2_0);
-    await graphPost("/me/messages/" + encodeURIComponent(restId) + "/move", token, {
-      destinationId: folder
+  }
+
+  /**
+   * Run a Graph call against the mailbox that holds the selected item: /me for the user's own
+   * mailbox, /users/{mailbox} for a shared one. For a shared item the owner's address is
+   * tried first and the client's targetMailbox value second. A 401/403 is a permission
+   * problem that another identifier cannot fix, so it ends the attempts.
+   */
+  async function withItemMailbox(shared, call) {
+    if (!shared) { return call("/me"); }
+    var ids = sharedMailboxIds(shared);
+    var lastError = null;
+    for (var i = 0; i < ids.length; i++) {
+      try {
+        return await call("/users/" + encodeURIComponent(ids[i]));
+      } catch (e) {
+        lastError = e;
+        if (e && (e.status === 401 || e.status === 403)) { break; }
+        if (i < ids.length - 1) {
+          log("warn", "Graph call failed for mailbox " + ids[i] + " – trying " + ids[i + 1], errText(e));
+        }
+      }
+    }
+    throw lastError || new Error("No mailbox identifier for the shared item");
+  }
+
+  async function moveItem(token, folder, shared) {
+    var id = encodeURIComponent(restItemId());
+    await withItemMailbox(shared, function (base) {
+      return graphPost(base + "/messages/" + id + "/move", token, { destinationId: folder });
     });
   }
 
+  /**
+   * The selected message as Base64 EML. Office.js (getAsFileAsync) comes first because it
+   * needs no Graph permission. If it fails, the MIME content is read through Graph – from
+   * /me for the user's own mailbox, from /users/{mailbox} for a shared one.
+   * mailboxToken() supplies the token for that read (acquired silently, on first use).
+   */
+  async function fetchEml(shared, mailboxToken) {
+    var officeError;
+    try {
+      return await getEmlBase64();
+    } catch (e) {
+      officeError = e;
+      log("warn", "getAsFileAsync failed – reading the MIME content through Graph instead", errText(e));
+    }
+    try {
+      var token = await mailboxToken();
+      var id = encodeURIComponent(restItemId());
+      var eml = await withItemMailbox(shared, function (base) {
+        return graphGetBase64(base + "/messages/" + id + "/$value", token);
+      });
+      log("info", "MIME content read through Graph", { mailbox: shared ? sharedLabel(shared) : "me" });
+      return eml;
+    } catch (e2) {
+      log("error", "Reading the MIME content through Graph failed", errText(e2));
+      if (!shared) { throw officeError; }   // own mailbox: report the original, well-known error
+      e2.sharedMailbox = sharedLabel(shared);
+      throw e2;
+    }
+  }
+
   async function reportViaGraph(cat) {
+    var shared = state.shared;
     var asMailbox = sendAs();
+    var wantMove = !!(CFG.MOVE_AFTER_REPORT && cat.moveTo) &&
+      (!shared || CFG.MOVE_IN_SHARED_MAILBOX !== false);
     var scopes = [asMailbox ? "Mail.Send.Shared" : "Mail.Send"];
-    if (CFG.MOVE_AFTER_REPORT && cat.moveTo) { scopes.push("Mail.ReadWrite"); }
+    if (wantMove && !shared) { scopes.push("Mail.ReadWrite"); }
 
     var token = await getToken(scopes);
 
-    var eml = await getEmlBase64();
+    // Token for reading or moving the item itself. In the user's own mailbox the send token
+    // already carries Mail.ReadWrite when a move is wanted. In every other case – above all
+    // for a shared mailbox, which needs a *.Shared scope – it is requested on first use and
+    // silently, so that a missing consent can never block a report with a sign-in window.
+    var itemScope = shared ? (wantMove ? "Mail.ReadWrite.Shared" : "Mail.Read.Shared") : "Mail.ReadWrite";
+    var itemToken = (!shared && wantMove) ? token : null;
+    var mailboxToken = async function () {
+      if (!itemToken) {
+        try {
+          itemToken = await getToken([itemScope], true);
+        } catch (e) {
+          e.permission = itemScope;
+          throw e;
+        }
+      }
+      return itemToken;
+    };
+
+    var eml = await fetchEml(shared, mailboxToken);
     var bytes = Math.floor(eml.length * 3 / 4);
     log("info", "EML fetched", { bytes: bytes });
     if (bytes > (CFG.MAX_GRAPH_ATTACHMENT_BYTES || 3 * 1024 * 1024)) {
@@ -709,17 +929,22 @@
       message: message,
       saveToSentItems: keepCopy()
     });
-    log("info", "Report sent via Graph", { to: cat.address, category: cat.id, as: asMailbox || "me", soc: soc, socMode: socMode() });
+    log("info", "Report sent via Graph", {
+      to: cat.address, category: cat.id, as: asMailbox || "me", soc: soc, socMode: socMode(),
+      sharedMailbox: shared ? sharedLabel(shared) : undefined
+    });
 
     var moved = false;
-    if (CFG.MOVE_AFTER_REPORT && cat.moveTo) {
+    if (wantMove) {
       try {
-        await moveItem(token, cat.moveTo);
+        await moveItem(await mailboxToken(), cat.moveTo, shared);
         moved = true;
-        log("info", "Message moved", { to: cat.moveTo });
+        log("info", "Message moved", { to: cat.moveTo, mailbox: shared ? sharedLabel(shared) : "me" });
       } catch (e) {
         log("warn", "Report sent, but the message could not be moved", errText(e));
       }
+    } else if (shared && CFG.MOVE_AFTER_REPORT && cat.moveTo) {
+      log("info", "Message left in place – MOVE_IN_SHARED_MAILBOX is false", { mailbox: sharedLabel(shared) });
     }
 
     setStatus("ok",
@@ -734,6 +959,12 @@
 
   function friendlyError(e) {
     var text = errText(e);
+    if (e && e.sharedMailbox && e.consentRequired) {
+      return t("errSharedConsent", { permission: e.permission || "Mail.ReadWrite.Shared" });
+    }
+    if (e && e.sharedMailbox && e.status) {
+      return t("errSharedAccess", { mailbox: e.sharedMailbox, status: e.status });
+    }
     if (/InteractionRequired|consent|AADSTS65001/i.test(text)) {
       return t("errConsent");
     }
@@ -777,9 +1008,13 @@
     state.busy = true;
     setButtonsEnabled(false);
     setStatus("wait", t("sending", { category: labelOf(cat).toLowerCase() }));
-    log("info", "Report started", { category: cat.id, mode: state.mode, language: state.language });
 
     try {
+      await sharedLookupDone();
+      log("info", "Report started", {
+        category: cat.id, mode: state.mode, language: state.language,
+        sharedMailbox: state.shared ? sharedLabel(state.shared) : undefined
+      });
       if (state.mode === "graph") {
         var r;
         try {

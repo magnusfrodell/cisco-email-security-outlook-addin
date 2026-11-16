@@ -108,6 +108,12 @@ html, body {
   overflow-wrap: anywhere;
 }
 
+.mail-shared {
+  margin-top: 4px;
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
 /* Category buttons */
 .btn-list {
   display: flex;

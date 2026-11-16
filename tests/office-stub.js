@@ -19,6 +19,10 @@
  * Minimal Office.js stub used by tests/smoke_test.py so the task pane can be
  * rendered and exercised in a plain browser, outside Outlook.
  * displayLanguage is da-DK so LANGUAGE: "auto" resolves to Danish.
+ * window.__stub lets a test change what the selected item looks like at run time:
+ *   shared          – null (own mailbox) or the SharedProperties object Office.js would return
+ *   getAsFileFails  – make item.getAsFileAsync fail, as it may on items outside the own mailbox
+ *   eml             – the Base64 EML that getAsFileAsync returns
  * It is never shipped – src/ must not reference this file.
  */
 (function () {
@@ -33,6 +37,11 @@
   var supported = { Mailbox: "1.15" }; // NestedAppAuth deliberately absent -> compose mode
 
   window.__stubCalls = { displayNewMessageForm: [], displayNewMessageFormAsync: [] };
+  window.__stub = {
+    shared: null,
+    getAsFileFails: false,
+    eml: btoa("From: stub@example.com\r\nSubject: EML from getAsFileAsync\r\n\r\nbody\r\n")
+  };
 
   window.Office = {
     HostType: { Outlook: "Outlook" },
@@ -61,7 +70,23 @@
           subject: "Din konto er spærret – bekræft dine oplysninger nu",
           from: { displayName: "Netbank Sikkerhed", emailAddress: "sikkerhed@netbank-login.example" },
           dateTimeCreated: new Date("2026-09-17T08:15:00Z"),
-          internetMessageId: "<20260917081500.ABC123@netbank-login.example>"
+          internetMessageId: "<20260917081500.ABC123@netbank-login.example>",
+          getAsFileAsync: function (a, b) {
+            var cb = typeof a === "function" ? a : b;
+            if (window.__stub.getAsFileFails) {
+              cb({ status: "failed", error: { message: "stub: getAsFileAsync is not available for this item" } });
+            } else {
+              cb({ status: "succeeded", value: window.__stub.eml });
+            }
+          },
+          getSharedPropertiesAsync: function (a, b) {
+            var cb = typeof a === "function" ? a : b;
+            if (window.__stub.shared) {
+              cb({ status: "succeeded", value: window.__stub.shared });
+            } else {
+              cb({ status: "failed", error: { message: "stub: the item isn't in a shared folder or mailbox" } });
+            }
+          }
         },
         addHandlerAsync: function (type, handler, cb) { window.__stubItemChanged = handler; cb({ status: "succeeded" }); },
         displayNewMessageForm: function (p) { window.__stubCalls.displayNewMessageForm.push(p); },

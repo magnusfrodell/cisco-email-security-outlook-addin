@@ -74,6 +74,13 @@ window.REPORTER_CONFIG = {
    */
   MOVE_AFTER_REPORT: true,
 
+  /* Mails reported from a shared mailbox (or a folder another user has shared) are moved
+   * for everybody who uses that mailbox. false = report them but leave them where they are.
+   * Moving there needs the delegated permission Mail.ReadWrite.Shared and Full Access for
+   * the user on the mailbox; see docs/DEPLOYMENT.md, "Shared mailboxes".
+   */
+  MOVE_IN_SHARED_MAILBOX: true,
+
   /* Default for "Keep a copy in Sent Items". Users can change it in the pane;
    * the choice is stored in their mailbox (roamingSettings).
    */

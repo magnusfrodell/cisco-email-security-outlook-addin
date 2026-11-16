@@ -21,9 +21,11 @@ HTML/CSS/JavaScript with no build step, self-hosted MSAL.js 4 for Nested App Aut
 Microsoft Graph `sendMail` and `move`. Static files only – any HTTPS host serves it. Python +
 Playwright for the headless smoke test; GitHub Actions for CI and optional GitHub Pages hosting.
 
-**Status:** 1.3.0 – feature complete for English, Danish and Swedish; validated with Microsoft's
+**Status:** 1.4.0 – feature complete for English, Danish and Swedish; validated with Microsoft's
 manifest validator and a headless smoke test on every commit. Testing automatic send end to end
-needs a Microsoft 365 tenant where you can register an Entra app (see Installation).
+needs a Microsoft 365 tenant where you can register an Entra app (see Installation). Reporting
+from shared mailboxes (new in 1.4.0) follows Microsoft's documented pattern and is covered by
+the smoke test against a mocked Microsoft Graph; it has not yet been confirmed in a live tenant.
 
 [![CI](https://github.com/magnusfrodell/cisco-email-security-outlook-addin/actions/workflows/ci.yml/badge.svg)](https://github.com/magnusfrodell/cisco-email-security-outlook-addin/actions/workflows/ci.yml)
 
@@ -49,6 +51,9 @@ With this add-in the organisation controls the whole experience:
   reworded.
 - One click sends the report and moves the message to Junk or back to the Inbox; the user never
   sees an outgoing mail.
+- Shared mailboxes work too: a mail that arrives in a shared mailbox (support@, info@ …) is
+  reported like any other – which Cisco's own add-in cannot do. The report is sent from the
+  reporting user, and the mail is moved for everyone who uses that mailbox.
 - The SOC sees what users report: every report can be copied to a SOC mailbox
   (`SOC_ADDRESSES`, Cc or Bcc) with a machine-readable details block, and all submissions can be
   sent *from* the SOC's shared mailbox (`SEND_AS`) so they are tracked under one address in the
@@ -60,7 +65,9 @@ Challenges solved along the way: legacy Exchange tokens are being retired, so th
 uses Nested App Authentication and Graph rather than EWS; Graph rejects inline attachments over
 3 MB, so larger mails fall back to a new message automatically; and Cisco's message shape
 (`orig_msg_*.raw.eml`, `message/rfc822`, the `X-MS-AddIn-Base64Encode` header) is mirrored so
-Talos sees a format it already accepts.
+Talos sees a format it already accepts. A mail in a shared mailbox does not exist under Graph's
+`/me`, so the pane asks Office.js where it lives and reads and moves it through
+`/users/{mailbox}`.
 
 Ideas for extending it: Outlook's integrated spam-reporting surface (the native *Report*
 button, Mailbox 1.14) as an alternative entry point, a dedicated category for Cisco Secure
@@ -76,7 +83,9 @@ Prerequisites:
   deployment; Application Administrator for the Entra app registration.
 - For development only: Node.js 18+ (`npm`), Python 3.10+ with Playwright for the smoke test.
 - Users on Outlook on the web, new Outlook on Windows, classic Outlook on Windows or Outlook on
-  Mac (Microsoft 365). Outlook mobile is not supported.
+  Mac (Microsoft 365). Outlook mobile is not supported. Reporting from shared mailboxes needs
+  classic Outlook on Windows Version 2304 or later, or Outlook on Mac 16.47 or later; Outlook on
+  the web and new Outlook on Windows support it as they are.
 
 Clone the repo
 
@@ -93,8 +102,9 @@ scripts/set-host.sh addin.contoso.com
 ```
 
 Register the Entra app that automatic send uses – SPA redirect URI `brk-multihub://addin.contoso.com`
-(origin only, no path), delegated Microsoft Graph permissions `Mail.Send` and `Mail.ReadWrite`,
-then grant admin consent. Put its *Application (client) ID* into `src/config.js`:
+(origin only, no path), delegated Microsoft Graph permissions `Mail.Send` and `Mail.ReadWrite`
+(plus `Mail.ReadWrite.Shared` if users are to report from shared mailboxes), then grant admin
+consent. Put its *Application (client) ID* into `src/config.js`:
 
 ```javascript
 CLIENT_ID: "00000000-0000-0000-0000-000000000000",
@@ -127,6 +137,7 @@ host take effect the next time a pane opens – no manifest update.
 | `SEND_MODE` / `COMPOSE_FALLBACK` | `"graph"` / `true` | Send through Graph; open a new message as the fallback when Graph is unavailable.       |
 | `CLIENT_ID` / `AUTHORITY`        | `""` / organizations | Entra app used for Graph; single-tenant or shared multi-tenant.                       |
 | `MOVE_AFTER_REPORT`              | `true`    | Move the reported mail to Junk / Inbox after a successful report.                                |
+| `MOVE_IN_SHARED_MAILBOX`         | `true`    | Also move a mail reported from a shared mailbox – for everyone who uses that mailbox.            |
 | `SOC_ADDRESSES` / `SOC_COPY_MODE` | `[]` / `"cc"` | Copy of every report to the SOC, visible to Cisco (Cc) or not (Bcc).                       |
 | `SEND_AS`                        | `""`      | Submit from a shared (SOC) mailbox instead of the user; needs Send As + `Mail.Send.Shared`.      |
 | `CATEGORIES`                     | six       | Cisco address, target folder and `enabled` flag per category; labels live in the locale files.   |
@@ -171,7 +182,7 @@ npm run docs                         # regenerate docs/index.html
 | [docs/LOCALIZATION.md](docs/LOCALIZATION.md)       | Locale files, language selection, manifest overrides            |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)       | How it works, sequence diagrams, function-by-function reference |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Reading the log, error codes, fixes                             |
-| [docs/FAQ.md](docs/FAQ.md)                         | Why an Entra app is needed, what Cisco's add-in does under the hood, how Talos treats reports |
+| [docs/FAQ.md](docs/FAQ.md)                         | Why an Entra app is needed, what Cisco's add-in does under the hood and why it fails in shared mailboxes, how Talos treats reports |
 | [docs/index.html](docs/index.html)                 | All of the above as one styled, offline HTML file (`npm run docs` rebuilds it) |
 | [SECURITY.md](SECURITY.md)                         | What data goes where, permissions                               |
 
@@ -200,6 +211,12 @@ tests/          Office.js stub and headless smoke test
   add-in recognises them separately.
 - `SEND_AS` applies to automatic send only; when the compose fallback is used the report leaves
   from the user's own mailbox.
+- Shared mailboxes: the user needs Full Access to the mailbox, and the add-in must be deployed
+  to the user, not to the shared mailbox. A shared mailbox that is hidden from the address list,
+  or one the user signed in to with the mailbox's own password, gives add-ins no item to report
+  (a Microsoft limitation). The compose fallback is untested for a mail in a shared mailbox –
+  whether Outlook attaches a mail from another mailbox by its id depends on the client – so
+  automatic send is the supported path there.
 - GitHub Pages hosting (the optional workflow) requires a public repository on free GitHub plans.
 
 Issues are tracked in [GitHub Issues](../../issues). Please attach the pane's technical log.
@@ -219,6 +236,8 @@ Contributions are welcome – see [CONTRIBUTING](./CONTRIBUTING.md). Useful area
 - More locales (`src/locales/`), Norwegian and Finnish first.
 - Test reports from real Outlook clients (classic Windows, Mac) with automatic send, so the
   client-support table in `docs/ARCHITECTURE.md` reflects experience rather than documentation.
+- Test reports from shared mailboxes in a live tenant: which clients supply the EML through
+  `getAsFileAsync` there, and what `targetMailbox` looks like in each of them.
 - An integrated spam-reporting variant (Outlook's native *Report* button) as an alternative
   manifest.
 

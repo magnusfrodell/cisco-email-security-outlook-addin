@@ -55,6 +55,7 @@ window.REPORTER_LOCALES.da = {
     selectMailHint: "Vælg en mail i listen for at rapportere den.",
     noSubject: "(uden emne)",
     fromPrefix: "Fra: ",
+    sharedMailbox: "Delt postkasse: {address}",
 
     missedHelp: "Mailen ligger i indbakken, men burde have været stoppet.",
     falsePositiveHelp: "Mailen blev fejlagtigt markeret som spam eller marketing.",
@@ -100,6 +101,8 @@ window.REPORTER_LOCALES.da = {
     errConsent: "Der mangler samtykke til at sende mail på dine vegne. Bed jeres administrator om at godkende tilføjelsesprogrammet.",
     errGraphDenied: "Outlook fik afslag fra Microsoft Graph ({status}). Tjek at rettighederne Mail.Send og Mail.ReadWrite er givet.",
     errGetFile: "Mailen kunne ikke hentes som fil i denne Outlook-version.",
+    errSharedConsent: "Rapportering fra en delt postkasse kræver rettigheden {permission}, som ikke er godkendt. Bed jeres administrator om at give tilføjelsesprogrammet den.",
+    errSharedAccess: "Mailen kunne ikke hentes fra den delte postkasse {mailbox} ({status}). Du skal have fuld adgang til postkassen.",
     errNotOutlook: "Dette tilføjelsesprogram skal åbnes fra Outlook.",
     errStart: "Tilføjelsesprogrammet kunne ikke starte: "
   }
